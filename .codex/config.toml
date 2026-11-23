@@ -1,0 +1,21 @@
+[mcp_servers.wechat-devtools]
+command = "powershell.exe"
+env = { MCP_CLIENT_NAME = "codex-ai-minigame" }
+args = ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", '''
+$ErrorActionPreference = 'Stop'
+
+$localAppData = [Environment]::GetFolderPath('LocalApplicationData')
+$tokenPath = Join-Path $localAppData 'ai-minigame\wechat-devtools.token'
+if (-not (Test-Path -LiteralPath $tokenPath -PathType Leaf)) {
+    throw ('Save the WeChat DevTools MCP Token in ' + $tokenPath)
+}
+
+$token = [IO.File]::ReadAllText($tokenPath).Trim()
+if ($token -cnotmatch '\A[A-Za-z0-9_-]+\z') {
+    throw ('Expected a single MCP Token in ' + $tokenPath)
+}
+
+$wechatide = Get-Command wechatide -CommandType Application
+& $wechatide.Source mcp ('--token=' + $token)
+exit $LASTEXITCODE
+''']
