@@ -1,6 +1,6 @@
 // 入口：加载页 → 建场 → 每帧（输入 / 自动玩 → 玩法 → 镜头 → 3D → 界面）
-// 试玩流程和参考试玩一致：开场就自动玩，屏幕上是「轻划移动」引导；手一碰就交给玩家，停手 2 秒又自动玩（底部出「我来操作！」）；
-// 最后一个地块买完 2.4 秒（或者满 90 秒）强制结束：压暗 + 大 logo（浏览器里再加「立即体验」），微信里通知平台试玩结束。
+// 试玩流程照参考试玩：开场就自动玩，自动玩期间一律显示「轻划移动」引导；手一碰就交给玩家，停手 2 秒又自动玩（没有「我来操作！」按钮）；
+// 左上和结束页都有「立即体验」；最后一个地块买完 2.4 秒（或者满 90 秒）强制结束：压暗 + 大 logo，微信里通知平台试玩结束。
 import './adapter.js';
 import * as THREE from 'three';
 import { initRenderer, initCamera, initEnv, initLights, render, setView, toUI, bigPx, scene, W as W0, view, VIEW_M, U, camera } from './world.js';

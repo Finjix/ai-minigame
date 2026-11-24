@@ -1,4 +1,4 @@
-// GLB optimisation for the minigame package: build/bake/{chars,props}/*.glb -> minigame/assets/models/*.glb
+// GLB optimisation for the minigame package: build/waterfall-fishing/bake/{chars,props}/*.glb -> games/waterfall-fishing/minigame/assets/models/*.glb
 // weld + dedup + prune, optional simplify (meshoptimizer), resample animation keys, quantize (KHR_mesh_quantization, no decoder needed).
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -6,8 +6,11 @@ import { weld, dedup, prune, resample, quantize, simplify, flatten, join } from 
 import { MeshoptSimplifier } from 'meshoptimizer';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const IN = 'build/bake', OUT = 'minigame/assets/models';
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const GAME = path.resolve(HERE, '..'), NAME = path.basename(GAME), ROOT = path.resolve(GAME, '../..');
+const IN = path.join(ROOT, 'build', NAME, 'bake'), OUT = path.join(GAME, 'minigame/assets/models');
 fs.mkdirSync(OUT, { recursive: true });
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 await MeshoptSimplifier.ready;

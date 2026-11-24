@@ -1,5 +1,5 @@
 {
-  "description": "无尽冬日 · 捕鱼卖肉 写实试玩",
+  "description": "瀑布捞鱼（无尽冬日 写实试玩）",
   "packOptions": { "ignore": [ { "type": "file", "value": "index.html" }, { "type": "folder", "value": "dev" } ], "include": [] },
   "setting": {
     "urlCheck": false,
@@ -16,7 +16,7 @@
   },
   "compileType": "game",
   "appid": "wx75786dc63b21f1bc",
-  "projectname": "township-fish-real",
+  "projectname": "瀑布捞鱼",
   "condition": {},
   "editorSetting": { "tabIndent": "insertSpaces", "tabSize": 2 }
 }

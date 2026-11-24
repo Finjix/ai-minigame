@@ -1,12 +1,12 @@
 """写实底图补洞：成片镜头没拍到的地方（原工程写实合成兜底成卡通颜色）
 1. 卡通树换成同一排写实的树（颜色 + 视深一起搬，视深按两棵树脚下的地面差平移，遮挡照样对）
 2. 没拍到的雪地叠原工程的写实雪贴图细节（按世界坐标平铺，按覆盖度淡入）
-输入 build/bake/env/{color_orig,depth_orig,cov,world_xyz.npy,meta.json}，输出 color.png / depth.png
+输入 build/waterfall-fishing/bake/env/{color_orig,depth_orig,cov,world_xyz.npy,meta.json}，输出 color.png / depth.png
 """
 import json, numpy as np
 from PIL import Image, ImageFilter
 
-E = 'build/bake/env'
+E = 'build/waterfall-fishing/bake/env'
 m = json.load(open(f'{E}/meta.json'))
 col = np.asarray(Image.open(f'{E}/color_orig.png').convert('RGB')).astype(np.float32)
 dep = np.asarray(Image.open(f'{E}/depth_orig.png').convert('RGB')).astype(np.int64)

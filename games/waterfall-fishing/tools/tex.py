@@ -1,5 +1,5 @@
 """Texture post-process for baked assets -> minigame/assets.
-Usage: python -I tools/tex.py <bake_dir> <out_dir>
+Usage: python -I games/waterfall-fishing/tools/tex.py [bake_dir] [out_dir]   (默认 build/waterfall-fishing/bake、games/waterfall-fishing/minigame/assets)
 - UV-baked albedo PNGs: merge slot bakes that share a texture, dilate coverage edges (no seams), resize, JPEG.
 - env: color -> JPEG, depth -> PNG (RG = 16-bit depth, B = kind), flow -> downscaled PNG.
 """
@@ -7,7 +7,8 @@ import sys, os, json
 import numpy as np
 from PIL import Image, ImageFilter
 
-BAKE, OUT = sys.argv[1], sys.argv[2]
+BAKE = sys.argv[1] if len(sys.argv) > 1 else 'build/waterfall-fishing/bake'
+OUT = sys.argv[2] if len(sys.argv) > 2 else 'games/waterfall-fishing/minigame/assets'
 
 
 def dilate(rgba, iters=24):

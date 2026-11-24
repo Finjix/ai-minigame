@@ -2,7 +2,7 @@
 import { THREE, renderer, BACK } from './core.js';
 import { PROTO } from './fbxchars.js';
 import * as SkeletonUtils from '/node_modules/three/examples/jsm/utils/SkeletonUtils.js';
-export async function cmp(texBase = '/game/assets/tex/', names = { hero_body: 'hero_body.jpg', hero_lan: 'hero_lan.jpg', hero_eye: 'hero_body.jpg' }) {
+export async function cmp(texBase = '/games/waterfall-fishing/assets/tex/', names = { hero_body: 'hero_body.jpg', hero_lan: 'hero_lan.jpg', hero_eye: 'hero_body.jpg' }) {
   const P = PROTO.buster, TL = new THREE.TextureLoader();
   const tx = {}; for (const [k, f] of Object.entries(names)) { tx[k] = await TL.loadAsync(texBase + f); tx[k].colorSpace = THREE.SRGBColorSpace; tx[k].wrapS = tx[k].wrapT = THREE.RepeatWrapping; }
   const mk = (baked) => {
