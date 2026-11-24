@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ref",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "D:/project/ai-minigame/_ref"],
+      "port": 8765
+    },
+    {
+      "name": "dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["D:/project/ai-minigame/tools/serve.mjs"],
+      "port": 8770
+    }
+  ]
+}

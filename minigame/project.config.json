@@ -1,0 +1,22 @@
+{
+  "description": "无尽冬日 · 捕鱼卖肉 写实试玩",
+  "packOptions": { "ignore": [ { "type": "file", "value": "index.html" }, { "type": "folder", "value": "dev" } ], "include": [] },
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "enhance": false,
+    "postcss": false,
+    "minified": false,
+    "coverView": false,
+    "showShadowRootInWxmlPanel": false,
+    "compileHotReLoad": false,
+    "useMultiFrameRuntime": true,
+    "babelSetting": { "ignore": [], "disablePlugins": [], "outputPath": "" },
+    "ignoreUploadUnusedFiles": true
+  },
+  "compileType": "game",
+  "appid": "wx75786dc63b21f1bc",
+  "projectname": "township-fish-real",
+  "condition": {},
+  "editorSetting": { "tabIndent": "insertSpaces", "tabSize": 2 }
+}
