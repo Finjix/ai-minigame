@@ -48,7 +48,10 @@ export function initCamera(m) {
   camera.position.copy(Lk).addScaledVector(F, -m.D);
   camera.up.set(0, 1, 0); camera.lookAt(Lk); camera.updateMatrixWorld();
   FULL = camera.clone(); FULL.updateProjectionMatrix(); FULL.updateMatrixWorld();
+  BAKE_VP.multiplyMatrices(FULL.projectionMatrix, FULL.matrixWorldInverse);
 }
+// 烘焙相机（整张底图）的投影：世界点 → 底图 UV（xy / w * 0.5 + 0.5，v 朝上，和 flipY 的贴图一致）
+export const BAKE_VP = new THREE.Matrix4();
 const _v = new THREE.Vector3();
 // 世界点 → 大图像素（左上原点）
 export function bigPx(x, y, z, out = [0, 0]) {

@@ -57,12 +57,31 @@ def albedo(srcs, dst, size, q=82):
     print(dst, os.path.getsize(dst))
 
 
+def atlas_crop(src, rect, dst, size, mul=1.0, q=88):
+    """从源工程图集里按 UV 框直接裁一块（导出时 uvRemap 把模型 UV 拉到了这个框的 0~1），颜色按 UE 材质乘 mul（线性空间）。
+    rect = [u0, v0, du, dv]（含导出时的 0.002 边距）"""
+    im = Image.open(src).convert('RGB'); W, H = im.size
+    u0, v0, du, dv = rect
+    c = im.transform((size, size), Image.EXTENT, (u0 * W, (1 - (v0 + dv)) * H, (u0 + du) * W, (1 - v0) * H), Image.BICUBIC)
+    x = np.asarray(c).astype(np.float32) / 255.0
+    lin = np.where(x <= 0.04045, x / 12.92, ((x + 0.055) / 1.055) ** 2.4) * mul
+    lin = np.clip(lin, 0, 1)
+    srgb = np.where(lin <= 0.0031308, lin * 12.92, 1.055 * lin ** (1 / 2.4) - 0.055)
+    Image.fromarray((srgb * 255 + 0.5).astype(np.uint8), 'RGB').save(dst, quality=q, optimize=True)
+    print(dst, os.path.getsize(dst))
+
+
+TW = os.environ.get('TW_ROOT', 'D:/AI 3D 写实版 工程/20261027_Township换皮_V17写实')
 A = os.path.join(OUT, 'tex')
+# 厨师 JueSeD_chef（原始网格 602 面）：UV 只占 citizen 图集里 u 0.627–0.687、v 0.921–1.0 一小块。
+#   UV 空间烘焙在 uvRemap 时没按裁剪框渲（只烘到角上一块，其余被均色填成灰 = 白模），所以直接从图集裁；材质 MasterMaterial_Inst20 = 图集 × 1.5
+CHEF_UV = [0.62655 - 0.002, 0.92093 - 0.002, 0.68736 - 0.62655 + 0.004, 1.00011 - 0.92093 + 0.004]
+atlas_crop(os.path.join(TW, 'assets/chars/tex/citizen.png'), CHEF_UV, f'{A}/chef.jpg', 256, mul=1.5)
+if os.environ.get('TEX_ONLY') == 'chef': sys.exit(0)
 albedo(['chars/hero_body.png', 'chars/hero_eye.png'], f'{A}/hero_body.jpg', 2048, 86)   # 主角原始贴图 2048，保持原始精度
 albedo(['chars/hero_lan.png'], f'{A}/hero_lan.jpg', 2048, 86)
 albedo(['chars/fisher_body.png', 'chars/fisher_eye.png'], f'{A}/fisher_body.jpg', 512)
 albedo(['chars/fisher_lan.png'], f'{A}/fisher_lan.jpg', 1024)
-albedo(['chars/chef_body.png'], f'{A}/chef.jpg', 256)
 albedo(['chars/cust_body.png'], f'{A}/cust.jpg', 512)
 albedo(['chars/cust_eye.png'], f'{A}/cust_eye.jpg', 128)
 albedo(['props/fish_body.png'], f'{A}/fish.jpg', 256)

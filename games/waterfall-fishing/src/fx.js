@@ -226,7 +226,7 @@ export function updateFx(t) {
 export function addStatic() { scene.add(targetRing, pathMesh); }
 
 // ------------------------------------------------------------------ 飘雪（成片：雪在世界空间，镜头移动雪不跟着走）：着色器里按世界坐标取模铺满镜头周围的一个盒子
-export function makeSnow(n = 520) {
+export function makeSnow(n = 720) {   // 雪：用户要「稍微下大一点点」，520 → 720 片、每片大一点
   const seed = new Float32Array(n * 3); for (let i = 0; i < n * 3; i++) seed[i] = Math.random();
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 3));
   g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e9);
@@ -237,9 +237,9 @@ void main(){
   vec3 p = aSeed * uBox; float sp = 0.7 + aSeed.x * 0.7;
   p.y -= uT * sp; p.x += sin(uT * 0.8 + aSeed.z * 30.0) * 0.35 + uT * 0.22; p.z += cos(uT * 0.6 + aSeed.y * 20.0) * 0.25 + uT * 0.08;
   vec3 w; w.xz = uC.xz + mod(p.xz - uC.xz + uBox.xz * 0.5, uBox.xz) - uBox.xz * 0.5; w.y = mod(p.y, uBox.y) - 0.3;
-  vA = 0.45 + 0.5 * aSeed.y;
+  vA = 0.5 + 0.5 * aSeed.y;
   gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
-  gl_PointSize = (2.2 + aSeed.z * 4.0) * uPx;
+  gl_PointSize = (2.6 + aSeed.z * 4.4) * uPx;
 }`,
     fragmentShader: `varying float vA; void main(){ vec2 d = gl_PointCoord - 0.5; float a = smoothstep(0.5, 0.15, length(d)) * vA; if (a < 0.01) discard; gl_FragColor = vec4(vec3(1.0), a); }`,
     transparent: true, depthWrite: false,

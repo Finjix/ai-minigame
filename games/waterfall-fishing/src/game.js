@@ -10,6 +10,8 @@ import { scene, camera, toUI, SUN, realLook, addCaster } from './world.js';
 import { Item, Stack, items, updateItems, SIZE, bakedGeo } from './items.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { makeChar } from './chars.js';
+import { actor, stepActor } from './custactions.js';
+import { buildFence, updateFence } from './fence.js';
 import { Tile, Zone, StandBox, makeFan, flash, puff, splash, updateFx, updateTarget, updatePath, iconTex } from './fx.js';
 import { play } from './audio.js';
 import { report } from './platform.js';
@@ -74,6 +76,7 @@ export function build(protos, tex) {
   // 柜台外排队的三个人 + 后面一大片人群
   for (let i = 0; i < L.front.length; i++) front.push(newCustomer(i, 0, true));
   buildCrowd(tex);
+  buildFence(P, emo);
   buildSchool(tex);
 }
 
@@ -95,6 +98,9 @@ function newCustomer(i, t, instant = false) {
     p: instant ? [s[0], s[1]] : [s[0] + (hash(t) - 0.5) * 0.8, s[1] + 1.4], head: null };
   cu.head = new Stack(() => [cu.p[0], 1.48, cu.p[1], Math.PI / 2], SIZE.pack.h * 0.95);
   c.obj.position.set(cu.p[0], 0, cu.p[1]); c.face(Math.PI); c.play(instant ? 'idle' : 'walk'); scene.add(c.obj);
+  // 等货的时候不是干站着：举手抗议、招手催、双手举起、跺脚、换重心张望轮着来（原工程 custactions.js 的 URG 那组）
+  const URG = ['raise', 'wave', 'bothUp', 'stomp', 'raise', 'shift', 'wave'];
+  cu.act = actor(c, () => URG[Math.floor(Math.random() * URG.length)], () => 0.5 + 1.4 * Math.random(), t + 0.4 + 1.2 * hash(i * 2.9 + t));
   return cu;
 }
 function updateCustomers(t, dt) {
@@ -105,13 +111,17 @@ function updateCustomers(t, dt) {
       if (k >= 1) { cu.state = 'wait'; cu.c.play('idle'); }
     } else if (cu.state === 'wait') {
       if (cu.got >= cu.need && cu.inFly === 0) { cu.state = 'done'; cu.t0 = t; play('served', { vol: 0.7 }); G.served++; report(2003); }
-    } else if (cu.state === 'done') {
-      if (t - cu.t0 > 0.45) { cu.state = 'leave'; cu.t0 = t; cu.c.play('walk'); }
+    } else if (cu.state === 'done') {   // 拿齐了：欢呼一下再走
+      if (cu.c.anim !== 'cheer') cu.c.play('cheer', 0.15, 1.3);
+      if (t - cu.t0 > 0.95) { cu.state = 'leave'; cu.t0 = t; cu.c.play('walk'); }
     } else if (cu.state === 'leave') {
       const k = (t - cu.t0); cu.c.face(0, Math.min(1, dt * 8)); cu.p[1] += dt * 2.0;
       if (k > 1.5) { scene.remove(cu.c.obj); for (const it of cu.head.items) it.kill(); front[i] = newCustomer(i, t); continue; }
     }
-    cu.c.obj.position.set(cu.p[0], 0, cu.p[1]); cu.c.update(dt);
+    const { off } = stepActor(cu.act, t, dt, cu.state === 'wait');
+    let ox = 0, oy = 0, oz = 0;
+    if (off) { const h = cu.c.heading; ox = off[0] * Math.cos(h) + off[2] * Math.sin(h); oy = off[1]; oz = -off[0] * Math.sin(h) + off[2] * Math.cos(h); }
+    cu.c.obj.position.set(cu.p[0] + ox, oy, cu.p[1] + oz);
   }
 }
 const waitingSlot = () => { let best = null; for (const cu of front) if (cu.state === 'wait' && cu.got + cu.inFly < cu.need) { if (!best || cu.i < best.i) best = cu; } return best; };
@@ -473,6 +483,7 @@ export function update(t, dt, auto) {
   updateChef(t, dt);
   updateWorkers(t, dt);
   updateCustomers(t, dt);
+  updateFence(t, dt);
   updateSchool(t, dt);
   updateRain(t);
   updateItems(t);

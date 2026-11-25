@@ -125,7 +125,7 @@ function endGame(t) {
 // ------------------------------------------------------------------ 镜头：跟主角（成片：一直跟拍，下塘推近）
 let focus = [0, 0, 0], camM = VIEW_M, camP = null;
 function updateCamera(dt, snap = false) {
-  const f = GM.heroFocus(), h = GM.state().hero;
+  const f = DBG.look || GM.heroFocus(), h = GM.state().hero;   // __dbg.look = [x, y, z]：镜头看指定点（调试截图）
   const tgtM = (h.inWater ? VIEW_M * 0.8 : VIEW_M) * (+(query.zoom || 1));
   const k = snap ? 1 : 1 - Math.exp(-dt * 4.5);
   focus = [lerp(focus[0], f[0], k), lerp(focus[1], f[1], k), lerp(focus[2], f[2], k)];
@@ -266,7 +266,7 @@ function frame() {
     if (readyT < 0) { readyT = rt; last0 = n; report(1003); console.log('[flow] first frame load=' + rt.toFixed(2) + 's canvas=' + world.canvas.width + 'x' + world.canvas.height + ' webgl2=' + world.renderer.capabilities.isWebGL2); if (typeof window !== 'undefined' && window.__ready) window.__ready(); }
     coverA = 1 - smooth((rt - readyT - 0.15) / 0.5);
     // 固定步长追帧：卡顿或后台降帧时游戏时间照样按真实时间走（每步最多 1/30 秒）
-    let acc = Math.min(0.5, (n - last0) / 1000) * SPEED; last0 = n;
+    let acc = DBG.paused ? 0 : Math.min(0.5, (n - last0) / 1000) * SPEED; last0 = n;   // __dbg.paused = true 定格（截图对比用）
     try {
       while (acc > 1e-4) {
         const st = Math.min(acc, 1 / 30); acc -= st;
@@ -275,6 +275,7 @@ function frame() {
         GM.update(gameT, st, flow.auto && !flow.ended);
         updateCamera(st);
       }
+      if (DBG.paused && DBG.look) updateCamera(0, true);
     } catch (e) { if (errs.length < 50) { errs.push(String(e && (e.stack || e.message) || e).slice(0, 300)); console.error(e); } }
     fpsAvg = fpsAvg * 0.95 + (1 / Math.max(1e-3, dt)) * 0.05;
     if (snow) snow.update(gameT, [focus[0], focus[2]], world.canvas.height / 1920);
@@ -292,5 +293,5 @@ function fail(e) {
   failed = true; console.error('playable fail:', e);
   if (isWx) gameEnd();
 }
-(isWx ? GameGlobal : window).__dbg = { UI, GM, world, flow, T, st: () => ({ coverA, readyT, ready, progress, shown, gameT, frames }) };
+const DBG = (isWx ? GameGlobal : window).__dbg = { UI, GM, world, flow, T, paused: false, look: null, st: () => ({ coverA, readyT, ready, progress, shown, gameT, frames }) };
 boot().catch((e) => { console.error(e); fail(e); });

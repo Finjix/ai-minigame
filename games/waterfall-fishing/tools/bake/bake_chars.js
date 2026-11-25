@@ -24,7 +24,9 @@ function bakeMat(geo, groups, material, size, offs = [[0, 0], [1, 0], [-1, 0], [
   m.onBeforeCompile = function (sh, r) {
     if (src && src !== THREE.Material.prototype.onBeforeCompile) src.call(this, sh, r);
     sh.uniforms.uUVOff = off; sh.uniforms.uRmp = rmp;
-    sh.vertexShader = 'uniform vec2 uUVOff;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  gl_Position = vec4((uv + uUVOff) * 2.0 - 1.0, 0.0, 1.0);');
+    // uvRemap：只烘 UV 包围框（uRmp = x0, y0, w, h）那一块并拉满整张图，导出的 GLB UV 也按这个框重映射。
+    //   原来这里没用 uRmp：厨师只烘到角上一小块，其余被 tex.py 用均色填成灰色，看起来就是白模（瀑布捞鱼第二轮反馈）
+    sh.vertexShader = 'uniform vec2 uUVOff; uniform vec4 uRmp;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  gl_Position = vec4(((uv + uUVOff) - uRmp.xy) / uRmp.zw * 2.0 - 1.0, 0.0, 1.0);');
     const enc = 'vec3 bk = clamp(diffuseColor.rgb, 0.0, 1.0); bk = mix(bk * 12.92, 1.055 * pow(bk, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, bk)); gl_FragColor = vec4(bk, 1.0); return;';
     if (sh.fragmentShader.includes('#include <emissivemap_fragment>')) sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', enc + '\n#include <emissivemap_fragment>');
     else console.warn('bake: no emissivemap_fragment');
