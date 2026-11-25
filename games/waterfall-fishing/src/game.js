@@ -12,6 +12,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { makeChar } from './chars.js';
 import { actor, stepActor } from './custactions.js';
 import { buildFence, updateFence } from './fence.js';
+import { buildCrowdActs, updateCrowdActs } from './crowdacts.js';
 import { Tile, Zone, StandBox, makeFan, flash, puff, splash, updateFx, updateTarget, updatePath, iconTex } from './fx.js';
 import { play } from './audio.js';
 import { report } from './platform.js';
@@ -76,6 +77,7 @@ export function build(protos, tex) {
   // 柜台外排队的三个人 + 后面一大片人群
   for (let i = 0; i < L.front.length; i++) front.push(newCustomer(i, 0, true));
   buildCrowd(tex);
+  buildCrowdActs(P, tex, crowd);
   buildFence(P, emo);
   buildSchool(tex);
 }
@@ -484,6 +486,7 @@ export function update(t, dt, auto) {
   updateWorkers(t, dt);
   updateCustomers(t, dt);
   updateFence(t, dt);
+  updateCrowdActs(t);
   updateSchool(t, dt);
   updateRain(t);
   updateItems(t);

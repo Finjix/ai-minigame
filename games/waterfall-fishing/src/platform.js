@@ -75,7 +75,8 @@ export function onTouch(start, move, end) {
   c.addEventListener('pointercancel', (e) => end(p(e)));
 }
 
-export const raf = (f) => (isWx ? requestAnimationFrame(f) : window.requestAnimationFrame(f));
+// ?raf=timer：浏览器里用定时器驱动主循环（调试窗格在后台时 requestAnimationFrame 不触发，自动玩跑不起来）
+export const raf = (f) => (isWx ? requestAnimationFrame(f) : query.raf === 'timer' ? setTimeout(() => f(performance.now()), 16) : window.requestAnimationFrame(f));
 export const now = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
 export function createAudioContext() {
