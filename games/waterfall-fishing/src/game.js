@@ -14,9 +14,9 @@ import { actor, stepActor } from './custactions.js';
 import { buildFence, updateFence } from './fence.js';
 import { buildCrowdActs, updateCrowdActs } from './crowdacts.js';
 import { Tile, Zone, StandBox, makeFan, flash, puff, splash, updateFx, updateTarget, updatePath, iconTex } from './fx.js';
-import { play } from './audio.js';
-import { report } from './platform.js';
-import { dist, clamp01, lerp, hash, inRect, wrapA, backOut, smooth } from './util.js';
+import { play } from '../../../shared/playable/audio.js';
+import { report } from '../../../shared/playable/platform.js';
+import { dist, clamp01, lerp, hash, inRect, wrapA, backOut, smooth } from '../../../shared/playable/util.js';
 
 export const G = { t: 0, ended: false, endT: Infinity, endAt: Infinity, unlocked: {}, served: 0, firstCatch: false };
 const PIER_Y = 0.045;

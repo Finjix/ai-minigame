@@ -1,3 +1,4 @@
+// 所有游戏共用（shared/playable）。
 // 微信小游戏里给 three.js 补的最小环境（浏览器里什么都不做）。
 // three r186 对 window / document / HTMLImageElement 都有 typeof 判断，这里只补它真正会碰到、又没判断的东西：
 // TextDecoder（GLTFLoader 解 GLB 的 JSON 块）、self、navigator、performance。不定义 window，免得 three 以为在浏览器里。

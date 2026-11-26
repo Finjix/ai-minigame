@@ -4,7 +4,7 @@
 
 1. [docs/video-to-minigame.md](docs/video-to-minigame.md)：制作流程和标准（输入、步骤、验证）。
 2. [docs/lessons.md](docs/lessons.md)：踩过的坑、用户会盯着看的细节、改进待办。
-3. 离要做的游戏最像的已有游戏的 README（目前只有 [瀑布捞鱼](games/waterfall-fishing/README.md)），能复用的代码直接从那里拿。
+3. 离要做的游戏最像的已有游戏的 README（[瀑布捞鱼](games/waterfall-fishing/README.md)、[水下巨木](games/underwater-log/README.md)），能复用的代码直接从那里拿；试玩外壳共用 `shared/playable/`。
 
 ## 定稿规则（用户已经确认，所有游戏都要遵守）
 

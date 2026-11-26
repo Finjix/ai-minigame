@@ -1,9 +1,11 @@
 // 2D 界面：小游戏只有一张上屏画布，界面不能另叠 DOM / 2D 画布。做法和参考试玩的 uigl 一样：
 // 开场把所有界面元素（参考试玩的画法原样搬过来）画进一张图集，每帧按顺序拼成一批四边形用 WebGL 画在 3D 上面。
 // 坐标是逻辑像素：宽 1080，高按屏幕比例（参考试玩同一套）。
+// 所有游戏共用（shared/playable）。按定稿规则不做「我来操作！」按钮；游戏自己的精灵用 buildAtlas 的 extra(def, helpers) 加。
 import * as THREE from 'three';
 import { createCanvas } from './platform.js';
-import { renderer } from './world.js';
+
+let renderer = null;
 
 export const FONT = '"PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
 export function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
@@ -27,14 +29,6 @@ function greenBtn(B, w, h, label, size) {
   rr(B, -w / 2, -h / 2 + 6, w, h, h / 2); B.fillStyle = '#1f7a17'; B.fill(); rr(B, -w / 2, -h / 2, w, h, h / 2);
   const n = B.createLinearGradient(0, -h / 2, 0, h / 2); n.addColorStop(0, '#8ef05a'); n.addColorStop(1, '#2fb52a'); B.fillStyle = n; B.fill(); B.lineWidth = 4; B.strokeStyle = '#ffffff'; B.stroke();
   text(B, label, 0, 2, { size, fill: '#ffffff', stroke: '#1d6e15', lw: 7 });
-}
-// 黄色「我来操作！」（S5）
-export const TAKE = { w: 420, h: 112 };
-function takeBtn(B) {
-  const { w: o, h: c } = TAKE;
-  rr(B, -o / 2, -c / 2 + 6, o, c, c / 2); B.fillStyle = '#a2520a'; B.fill(); rr(B, -o / 2, -c / 2, o, c, c / 2);
-  const h = B.createLinearGradient(0, -c / 2, 0, c / 2); h.addColorStop(0, '#ffe36a'); h.addColorStop(1, '#ffa21f'); B.fillStyle = h; B.fill(); B.lineWidth = 5; B.strokeStyle = '#ffffff'; B.stroke();
-  text(B, '我来操作！', 0, 2, { size: 54, fill: '#ffffff', stroke: '#8a4300', lw: 8 });
 }
 // 手指（T5）
 function hand(B, s = 1) {
@@ -74,7 +68,8 @@ let atlasTex = null, AW = 2048, AH = 2048;
 export const sprite = (k) => SPR[k];
 export const atlas = () => atlasTex;
 export const quads = () => nq;
-export function buildAtlas({ W, H, logo, packIcon, coverImg }) {
+export function buildAtlas({ W, H, logo, bubIcon, packIcon, coverImg, renderer: r, extra }) {
+  renderer = r; bubIcon = bubIcon || packIcon;
   const defs = [];
   const def = (key, b, draw) => defs.push({ key, b, draw });
   const LOGO = { w: 300, h: 300 * logo.height / logo.width };
@@ -85,12 +80,11 @@ export function buildAtlas({ W, H, logo, packIcon, coverImg }) {
   { const s = 600, o = s * logo.height / logo.width; def('logoLoad', [-s / 2 - 30, -o / 2 - 30, s / 2 + 30, o / 2 + 40], (c) => { c.save(); c.shadowColor = 'rgba(0,0,0,0.5)'; c.shadowOffsetY = 4; c.shadowBlur = 14; c.drawImage(logo, -s / 2, -o / 2, s, o); c.restore(); }); }
   def('btnTop', [-134 - 24, -41 - 24, 134 + 24, 41 + 30], (c) => greenBtn(c, 268, 82, '立即体验', 40));
   def('btnEnd', [-300 - 24, -75 - 24, 300 + 24, 75 + 30], (c) => greenBtn(c, 600, 150, '立即体验', 66));
-  def('btnTake', [-TAKE.w / 2 - 24, -TAKE.h / 2 - 24, TAKE.w / 2 + 24, TAKE.h / 2 + 30], (c) => takeBtn(c));
   def('hudBg', [-90, -90, 274, 90], (c) => { rr(c, 0, -30, 250, 60, 20); c.fillStyle = 'rgba(40,44,58,0.55)'; c.fill(); bills3(c, 4, 0, 1.45); });
   def('check', [-44, -44, 44, 44], check);
   def('bub', [-48, -48, 48, 60], (c) => { c.fillStyle = '#ffffff'; c.beginPath(); c.arc(0, 0, 33, Math.PI * 0.62, Math.PI * 2.38); c.lineTo(0, 46); c.closePath(); c.fill(); c.lineWidth = 2.5; c.strokeStyle = 'rgba(60,60,70,0.5)'; c.stroke(); });
   def('bubFill', [-30, -30, 30, 30], (c) => { c.fillStyle = '#4fd34f'; c.beginPath(); c.arc(0, 0, 29, 0, 7); c.fill(); });
-  def('bubIcon', [-30, -30, 30, 30], (c) => c.drawImage(packIcon, -30, -30, 60, 60));
+  def('bubIcon', [-30, -30, 30, 30], (c) => { if (bubIcon) c.drawImage(bubIcon, -30, -30, 60, 60); });
   for (const [k, kind, tail] of [['ang0', 'angry', 0], ['ang1', 'angry', 1], ['smile1', 'smile', 1], ['heart1', 'heart', 1]]) def(k, [-58, -54, 58, 64], (c) => face(c, 32, kind, tail));
   const pn = 1.35, ty = H - 510;
   def('tutLine', [-170 * pn - 30, -30, 170 * pn + 30, 30], (c) => { c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = 10 * pn; c.lineCap = 'round'; c.setLineDash([2, 22 * pn]); c.beginPath(); c.moveTo(-170 * pn, 0); c.lineTo(170 * pn, 0); c.stroke(); c.setLineDash([]); });
@@ -107,6 +101,7 @@ export function buildAtlas({ W, H, logo, packIcon, coverImg }) {
   // 数字（HUD 46 号白字描深边；红字是钱不够时闪；加载百分比 40 号）
   for (const [id, size, lw, stroke, fill] of [['a', 46, 7, '#2c2f3a', '#ffffff'], ['r', 46, 7, '#2c2f3a', '#ff4a3a'], ['p', 40, 6, 'rgba(0,0,0,0.55)', '#ffffff']])
     for (const ch of '0123456789') def(id + ch, [-lw - 6, -size - lw, size * 0.8 + lw, size + lw], (c) => { c.font = `900 ${size}px ${FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle'; c.lineJoin = 'round'; c.lineWidth = lw; c.strokeStyle = stroke; c.strokeText(ch, 0, 0); c.fillStyle = fill; c.fillText(ch, 0, 0); });
+  if (extra) extra(def, { rr, text, bill, face, check, hand, FONT, W, H });
   // 打包
   const cv = createCanvas(AW, AH), c = cv.getContext('2d');
   let x = 2, y = 2, rowH = 0;

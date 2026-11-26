@@ -7,8 +7,8 @@ import { L } from './config.js';
 import { scene, addCaster, BAKE_VP, U, envMat } from './world.js';
 import { makeChar } from './chars.js';
 import { actor, stepActor } from './custactions.js';
-import { hash } from './util.js';
-import { query } from './platform.js';
+import { hash } from '../../../shared/playable/util.js';
+import { query } from '../../../shared/playable/platform.js';
 
 const LOG_R = 0.155, LOG_H = 1.15;
 const FZ = L.plaza[3];   // 栅栏线（院子南边）

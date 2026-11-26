@@ -1,3 +1,4 @@
+// 所有游戏共用（shared/playable）。
 // 资源加载：图片走平台的 Image（微信里是 wx.createImage），GLB 读成 ArrayBuffer 交给 GLTFLoader.parse（GLB 里不带贴图，不需要 Blob）
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';

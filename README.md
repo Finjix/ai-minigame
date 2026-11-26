@@ -11,6 +11,7 @@
 | 目录 | 名字 | 说明 |
 |---|---|---|
 | [`games/waterfall-fishing/`](games/waterfall-fishing/README.md) | 瀑布捞鱼 | 无尽冬日写实试玩：下塘捞鱼 → 加工 → 卖货 → 升级，改编自 `20261027_Township换皮_V17写实` |
+| [`games/underwater-log/`](games/underwater-log/README.md) | 水下巨木 | 无尽冬日写实试玩：研磨机磨巨木 → 背木头添柴 → 烤肉 → 卖给顾客变钞票 → 传送带、第二个柜台、研磨机升级，改编自 `水下巨木_写实投影版工程_V20` |
 
 ## 目录约定
 
@@ -19,7 +20,9 @@
 | `games/<名字>/minigame/` | 该游戏的微信小游戏工程（开发者工具导入这个目录） |
 | `games/<名字>/src/` | 该游戏源码，入口 `src/main.js` |
 | `games/<名字>/tools/` | 该游戏专用的资源脚本 |
-| `tools/build.mjs` | 共用打包：`node tools/build.mjs [名字…] [--dev]`，不写名字打包全部 |
+| `shared/playable/` | 所有游戏共用的试玩外壳：微信适配、平台差异、加载、声音、2D 界面（logo、立即体验、轻划移动、摇杆、HUD、气泡） |
+| `tools/build.mjs` | 共用打包：`node tools/build.mjs [名字…] [--dev] [--dbg]`，不写名字打包全部；`--dbg` 让微信里也显示状态浮层 |
+| `tools/wxide.mjs` | 微信开发者工具命令行的包装（参数不经过 cmd.exe）：`node tools/wxide.mjs simulator_screenshot --project <绝对路径>` |
 | `tools/serve.mjs` | 共用本地服务：`/games/<名字>/…` 浏览器里跑游戏；烘焙页和 `/_save` 用环境变量 `BAKE_GAME`、`TW_ROOT` 指定游戏和源工程 |
 | `build/<名字>/` | 烘焙中间产物（不进仓库） |
 | `docs/` | 制作流程和经验库，每个任务结束都要更新 |

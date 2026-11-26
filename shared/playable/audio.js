@@ -1,3 +1,4 @@
+// 所有游戏共用（shared/playable）。
 // 声音：参考试玩的音效合集（一个 mp3 + 片段表）和配乐，WebAudio 播（微信里 wx.createWebAudioContext）。
 import { createAudioContext, readBinary, readJSON, onShowHide } from './platform.js';
 

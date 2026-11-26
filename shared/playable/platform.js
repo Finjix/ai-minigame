@@ -1,3 +1,4 @@
+// 所有游戏共用（shared/playable）。
 // 平台层：微信小游戏 / 浏览器（开发调试用）两套实现，游戏代码只调这里。
 export const isWx = typeof wx !== 'undefined' && typeof GameGlobal !== 'undefined';
 const ROOT = isWx ? '' : (typeof location !== 'undefined' ? location.pathname.replace(/[^/]*$/, '') : '');

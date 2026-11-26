@@ -1,3 +1,4 @@
+// 所有游戏共用（shared/playable）。
 // 小工具（缓动函数和参考试玩同名同式）
 export const clamp01 = (t) => Math.min(1, Math.max(0, t));
 export const clamp = (x, a, b) => Math.min(b, Math.max(a, x));

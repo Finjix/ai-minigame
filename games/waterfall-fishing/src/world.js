@@ -6,7 +6,7 @@
 // · 会动的东西投影：太阳方向的正交阴影图，只画会动的东西，环境着色器按世界坐标查（底图里静止物体的影子本来就有）。
 // · 写实做旧：会动的东西统一过一层成片里的做旧调色（降饱和、压亮度、偏暖灰），环境和人物同一层颗粒、暗角。
 import * as THREE from 'three';
-import { getMainCanvas, sysInfo, isWx } from './platform.js';
+import { getMainCanvas, sysInfo, isWx } from '../../../shared/playable/platform.js';
 import { WATER_Y } from './config.js';
 
 export let renderer, scene, camera, meta, W = 1080, H = 1920, canvas;

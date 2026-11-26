@@ -1,9 +1,9 @@
 // 场景里的玩法提示和特效（参考试玩的画法：地块、目标光圈、地上的箭头路、交接区圆圈；成片的红色捕鱼扇形、虚线框）
 import * as THREE from 'three';
 import { scene, camera, WATER_Y } from './world.js';
-import { createCanvas } from './platform.js';
-import { rr, bill, text, FONT } from './ui.js';
-import { backOut, clamp01, smooth, lerp } from './util.js';
+import { createCanvas } from '../../../shared/playable/platform.js';
+import { rr, bill, text, FONT } from '../../../shared/playable/ui.js';
+import { backOut, clamp01, smooth, lerp } from '../../../shared/playable/util.js';
 
 const canvasTex = (w, h, draw) => { const c = createCanvas(w, h), g = c.getContext('2d'); draw(g); const t = new THREE.Texture(c); t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; t.anisotropy = 4; return t; };
 const flat = (w, h) => { const g = new THREE.PlaneGeometry(w, h); g.rotateX(-Math.PI / 2); return g; };

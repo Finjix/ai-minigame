@@ -1,0 +1,22 @@
+{
+  "description": "水下巨木（无尽冬日 写实试玩）",
+  "packOptions": { "ignore": [ { "type": "file", "value": "index.html" }, { "type": "folder", "value": "dev" } ], "include": [] },
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "enhance": false,
+    "postcss": false,
+    "minified": false,
+    "coverView": false,
+    "showShadowRootInWxmlPanel": false,
+    "compileHotReLoad": false,
+    "useMultiFrameRuntime": true,
+    "babelSetting": { "ignore": [], "disablePlugins": [], "outputPath": "" },
+    "ignoreUploadUnusedFiles": true
+  },
+  "compileType": "game",
+  "appid": "wx75786dc63b21f1bc",
+  "projectname": "水下巨木",
+  "condition": {},
+  "editorSetting": { "tabIndent": "insertSpaces", "tabSize": 2 }
+}

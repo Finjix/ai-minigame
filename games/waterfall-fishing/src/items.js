@@ -2,7 +2,7 @@
 // 每个物品挂在一个「槽」上（栈的第几层、顾客头顶……），换槽时沿抛物线飞过去，到了以后贴着槽走。
 import * as THREE from 'three';
 import { scene, realLook, addCaster } from './world.js';
-import { arc, clamp01, lerp, smooth } from './util.js';
+import { arc, clamp01, lerp, smooth } from '../../../shared/playable/util.js';
 
 export const SIZE = { fish: { thick: 0.274 * 0.92, len: 1.05 }, pack: { h: 0.25 }, cash: { h: 0.0886 } };
 

@@ -8,7 +8,7 @@
 |---|---|
 | `minigame/` | 微信小游戏工程（用微信开发者工具打开这个目录）。`game.js` 入口 → `js/main.js`（打包产物）+ `assets/` |
 | `minigame/index.html` | 浏览器调试页（同一个打包文件；上传时被 `packOptions.ignore` 排除） |
-| `src/` | 游戏源码（ES 模块，Three.js r186） |
+| `src/` | 游戏源码（ES 模块，Three.js r186）。试玩外壳（微信适配、加载、声音、2D 界面）在 `../../shared/playable/` |
 | `tools/` | 这个游戏专用的资源烘焙、压缩、底图修补脚本（依赖原工程） |
 | `../../build/waterfall-fishing/` | 烘焙中间产物（不进仓库） |
 

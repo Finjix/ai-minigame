@@ -1,20 +1,20 @@
 // 入口：加载页 → 建场 → 每帧（输入 / 自动玩 → 玩法 → 镜头 → 3D → 界面）
 // 试玩流程照参考试玩：开场就自动玩，自动玩期间一律显示「轻划移动」引导；手一碰就交给玩家，停手 2 秒又自动玩（没有「我来操作！」按钮）；
 // 左上和结束页都有「立即体验」；最后一个地块买完 2.4 秒（或者满 90 秒）强制结束：压暗 + 大 logo，微信里通知平台试玩结束。
-import './adapter.js';
+import '../../../shared/playable/adapter.js';
 import * as THREE from 'three';
 import { initRenderer, initCamera, initEnv, initLights, render, setView, toUI, bigPx, scene, W as W0, view, VIEW_M, U, camera } from './world.js';
 import * as world from './world.js';
-import * as UI from './ui.js';
-import * as LD from './loader.js';
+import * as UI from '../../../shared/playable/ui.js';
+import * as LD from '../../../shared/playable/loader.js';
 import { proto } from './chars.js';
 import { initItems } from './items.js';
 import * as GM from './game.js';
 import { addStatic, makeSnow } from './fx.js';
-import { initAudio, play, startBgm, endMusic, resume } from './audio.js';
-import { onTouch, sysInfo, raf, now, report, gameEnd, download, hideDownload, isWx, query, loadImage, onShowHide, createCanvas } from './platform.js';
+import { initAudio, play, startBgm, endMusic, resume } from '../../../shared/playable/audio.js';
+import { onTouch, sysInfo, raf, now, report, gameEnd, download, hideDownload, isWx, query, loadImage, onShowHide, createCanvas } from '../../../shared/playable/platform.js';
 import { T, L, WATER_Y } from './config.js';
-import { clamp01, smooth, backOut, lerp, hash } from './util.js';
+import { clamp01, smooth, backOut, lerp, hash } from '../../../shared/playable/util.js';
 
 let W = 1080, H = 1920, ready = false, failed = false;
 const flow = { touching: false, lastTouch: -Infinity, firstTouch: Infinity, auto: true, autoT: 0, ended: false, endT: Infinity, joy: null };
@@ -25,20 +25,20 @@ const si = sysInfo();
 const toL = (p) => [p.x * W / si.w, p.y * H / si.h];
 
 // ------------------------------------------------------------------ 布局（参考试玩）
-const ui = { x: 28, y: 34, w: 300, h: 89 }, hi = { x: 44, y: 0, w: 268, h: 82 }, hr = { cx: 0, cy: 0, w: UI.TAKE.w, h: UI.TAKE.h };
+const ui = { x: 28, y: 34, w: 300, h: 89 }, hi = { x: 44, y: 0, w: 268, h: 82 };
 let HUDY = 92;
 
 async function boot() {
   report(1001);
   ({ W, H } = initRenderer());
-  hi.y = ui.y + ui.h + 10; hr.cx = W / 2; hr.cy = H - 170;
+  hi.y = ui.y + ui.h + 10;
   // 微信：右上角是胶囊菜单，钱数放到胶囊下面；顶部按安全区让开刘海
   const k = H / si.h;
   if (si.safeTop) ui.y = Math.max(ui.y, si.safeTop * k + 10);
   if (si.menu && si.menu.bottom) HUDY = Math.max(HUDY, si.menu.bottom * k + 48);
   // 加载页先起来：logo、封面图、货的图标
   const [logo, cover, packIconImg] = await Promise.all([loadImage('assets/ui/logo.png'), loadImage('assets/ui/cover.jpg'), loadImage('assets/ui/pack_icon.png')]);
-  const { LOGO } = UI.buildAtlas({ W, H, logo, packIcon: packIconImg, coverImg: cover }); ui.h = LOGO.h; hi.y = ui.y + ui.h + 10;
+  const { LOGO } = UI.buildAtlas({ W, H, logo, bubIcon: packIconImg, coverImg: cover, renderer: world.renderer }); ui.h = LOGO.h; hi.y = ui.y + ui.h + 10;
   LD.setProgress((f) => { progress = Math.max(progress, 0.08 + f * 0.82); });
   raf(frame);
   // 资源
@@ -95,7 +95,6 @@ function touchMove(p) {
 function touchEnd(p) { if (p.id !== joy.id) return; joy.id = null; joy.dx = joy.dy = 0; flow.touching = false; flow.lastTouch = gameT; }
 function firstTouch() { if (flow.firstTouch === Infinity) { flow.firstTouch = gameT; report(1004); report(2001); } }
 const hitTop = (x, y) => x >= hi.x - 10 && x <= hi.x + hi.w + 10 && y >= hi.y - 10 && y <= hi.y + hi.h + 10;
-const hitTake = (x, y) => Math.abs(x - hr.cx) <= hr.w / 2 + 16 && Math.abs(y - hr.cy) <= hr.h / 2 + 16;
 
 // 摇杆 → 世界方向：屏幕右 = 相机右，屏幕上 = 相机朝前在地上的投影
 function joyToWorld() {
@@ -203,7 +202,6 @@ function drawTutorial(t) {
   const r = smooth((t - flow.autoT) / 0.3), s = W / 2, o = H - 510, c = (t % 1.6) / 1.6, pn = 1.35, h = Math.sin(c * Math.PI * 2) * 150 * pn;
   UI.spr('tutLine', s, o, { a: r }); UI.spr('hand', s + h, o + 18 * pn, { a: r }); UI.spr('tutText', s, o + 150 * pn, { a: r });
 }
-function drawTake(t) { const r = flow.auto && !flow.ended ? backOut((t - flow.autoT) / 0.3) * (1 + 0.04 * Math.sin(t * 5)) : 0; if (r > 0.01) UI.spr('btnTake', hr.cx, hr.cy, { s: r }); }
 function drawJoy() { const j = flow.joy; if (!j) return; UI.spr('joyBase', j.x, j.y); UI.spr('joyKnob', j.x + j.dx, j.y + j.dy); }
 function drawTop(t) { UI.spr('logo', ui.x, ui.y); UI.spr('btnTop', hi.x + hi.w / 2, hi.y + hi.h / 2, { s: flow.ended ? 1 : 1 + 0.05 * Math.sin(t * 6) }); }
 function drawEnd(t) {

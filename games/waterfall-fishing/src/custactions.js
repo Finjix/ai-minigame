@@ -4,7 +4,7 @@
 // 用法（每帧）：undoAction(c) → c.update(dt)（混合器出 idle）→ applyAction(c, 名字, u, 强度)
 //   three.js 的混合器算出的值和上一帧一样时不往骨头上写，所以叠上去的旋转要先用 undoAction 还原
 import * as THREE from 'three';
-import { smooth, clamp01 } from './util.js';
+import { smooth, clamp01 } from '../../../shared/playable/util.js';
 
 const _qp = new THREE.Quaternion(), _qd = new THREE.Quaternion(), _qo = new THREE.Quaternion(), _qi = new THREE.Quaternion(), _ax = new THREE.Vector3();
 function rotC(c, name, ax, ay, az, ang) {
