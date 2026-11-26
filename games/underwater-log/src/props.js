@@ -2,7 +2,7 @@
 //   研磨机（1 级、2 级，骨骼动画）、巨木（在冰洞里转着被磨细、沉下去、下一根冒上来）、柜台后排木桩（顾客挤的时候晃）、
 //   柜台 2（锁着是灰的，解锁换木色）、锁、传送带、炉膛里的火。
 import * as THREE from 'three';
-import { scene, realLook, meta, envMat, U } from './world.js';
+import { scene, realLook, meta, envMat, U, GRADE_GLSL } from './world.js';
 import { L } from './config.js';
 import { propGeo, bakedGeo } from './items.js';
 import { makeChar, proto } from './chars.js';
@@ -17,14 +17,14 @@ export function envUVMat({ offset, tint = [1, 1, 1], sat = 1 }) {
   const m = meta, Lk = new THREE.Vector3(...m.L), F = new THREE.Vector3(...m.F), R = new THREE.Vector3(...m.R), Up = new THREE.Vector3(...m.U), C = Lk.clone().addScaledVector(F, -m.D);
   const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
   mat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, { tEnv: { value: envMat.uniforms.tCol.value }, uOff: { value: new THREE.Vector3(...offset) }, uC: { value: C }, uF: { value: F }, uR: { value: R }, uU: { value: Up }, uWH: { value: new THREE.Vector2(m.Wm, m.Hm) }, uD: { value: m.D }, uTint: { value: new THREE.Vector3(...tint) }, uSat: { value: sat } });
+    Object.assign(sh.uniforms, { tEnv: { value: envMat.uniforms.tCol.value }, uOff: { value: new THREE.Vector3(...offset) }, uC: { value: C }, uF: { value: F }, uR: { value: R }, uU: { value: Up }, uWH: { value: new THREE.Vector2(m.Wm, m.Hm) }, uD: { value: m.D }, uTint: { value: new THREE.Vector3(...tint) }, uSat: { value: sat }, uGr: U.uGr });
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec3 uOff; uniform vec3 uC; uniform vec3 uF; uniform vec3 uR; uniform vec3 uU; uniform vec2 uWH; uniform float uD; varying vec2 vEnv;')
       .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
   { vec3 w = (modelMatrix * vec4(transformed, 1.0)).xyz + uOff, d = w - uC; float z = dot(d, uF); vec2 q = vec2(dot(d, uR), dot(d, uU)) * uD / z;
     vEnv = vec2(q.x / uWH.x + 0.5, q.y / uWH.y + 0.5); }`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tEnv; uniform vec3 uTint; uniform float uSat; varying vec2 vEnv;')
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tEnv; uniform vec3 uTint; uniform float uSat; uniform vec4 uGr; varying vec2 vEnv;\n' + GRADE_GLSL)
       .replace('#include <opaque_fragment>', `{ vec3 e = texture2D(tEnv, vEnv).rgb; float l = dot(e, vec3(0.2126, 0.7152, 0.0722)); e = mix(vec3(l), e, uSat) * uTint;
-    outgoingLight = pow(e, vec3(2.2)); }   // 底图像素本身就带着烘焙时的光照（底图是 NoColorSpace，按 sRGB 解回线性）
+    outgoingLight = pow(grade_(e, uGr), vec3(2.2)); }   // 底图像素本身就带着烘焙时的光照（底图是 NoColorSpace，按 sRGB 解回线性）
 #include <opaque_fragment>`);
   };
   mat.customProgramCacheKey = () => 'envuv' + offset.join(',') + tint.join(',') + sat;

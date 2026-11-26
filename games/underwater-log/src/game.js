@@ -34,8 +34,22 @@ export function build(protos, tex) {
   hero = { c: makeChar(P.hero, P.heroTex, { look: { k: 1.18, sat: 1.1 } }), p: [...L.start], vel: [0, 0], heading: Math.PI * 0.8, sway: [0, 0], nx: {}, full: -9, kind: null };
   hero.c.play('idle'); scene.add(hero.c.obj); hero.c.obj.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   const backD = 0.3, backY = 0.9;
-  hero.goods = new Stack(() => { const f = fwdOf(hero.heading); return [hero.p[0] - f[0] * backD, backY, hero.p[1] - f[1] * backD, hero.heading]; }, SIZE.log.h, { sway: hero.sway, gapOf: (it) => (it && it.type === 'log' ? SIZE.log.h * 0.92 : SIZE.cooked.h * 0.95) });
-  hero.cash = new Stack(() => { const f = fwdOf(hero.heading), b = backD + (hero.goods.n ? 0.42 : 0); return [hero.p[0] - f[0] * b, backY + 0.02, hero.p[1] - f[1] * b, hero.heading]; }, SIZE.cash.h * 1.02, { sway: hero.sway });
+  // 同时背着货和钞票：两摞在背后左右并排（示例游戏的做法：背点不动，两样都有时并排系数 spr 用 0.1 秒缓到 1）。
+  // 并排时两摞都跟着 spr 转成顺着身子前后放（横着放熟肉 0.62 米、钞票 0.46 米，并排就撞在一起穿模），再按各自的宽度左右排开、中间留 6 厘米，整体居中在背后
+  hero.spr = 0;
+  const WIDE = { cooked: 0.485, raw: 0.485, log: 0.17, cash: 0.242 }, GAP = 0.06;
+  // 转成前后放以后长边那一半比原来的进深长，再往后让一点，免得插进后背（熟肉 0.31 − 0.24、钞票 0.23 − 0.12）。
+  // 木头 1 米长，转不了：背木头时木头照旧横着，钞票摞在木头后面（木头半径 0.08 + 钞票半进深 0.12 + 5 厘米）
+  const LONG = { cooked: 0.31, raw: 0.31, cash: 0.23 }, DEEP = { cooked: 0.24, raw: 0.24, cash: 0.12 };
+  const side = (k) => {
+    const f = fwdOf(hero.heading), r = [f[1], -f[0]], kind = hero.goods.n ? hero.goods.items[0].type : 'cooked', sp = hero.spr;
+    if (kind === 'log') { const b = backD + (k < 0 ? 0.25 * sp : 0); return [hero.p[0] - f[0] * b, hero.p[1] - f[1] * b, hero.heading]; }
+    const wG = WIDE[kind] || 0.4, wC = WIDE.cash, W = wG + wC + GAP, o = (k > 0 ? W / 2 - wG / 2 : -(W / 2 - wC / 2)) * sp;
+    const m = k > 0 ? kind : 'cash', b = backD + ((LONG[m] || 0.3) - (DEEP[m] || 0.2)) * sp;
+    return [hero.p[0] - f[0] * b + r[0] * o, hero.p[1] - f[1] * b + r[1] * o, hero.heading + sp * Math.PI / 2];
+  };
+  hero.goods = new Stack(() => { const q = side(1); return [q[0], backY, q[1], q[2]]; }, SIZE.log.h, { sway: hero.sway, gapOf: (it) => (it && it.type === 'log' ? SIZE.log.h * 0.92 : SIZE.cooked.h * 0.95) });
+  hero.cash = new Stack(() => { const q = side(-1); return [q[0], backY + 0.02, q[1], q[2]]; }, SIZE.cash.h * 1.02, { sway: hero.sway });
   // 研磨机、巨木、后排木桩、柜台 2、锁、炉火
   grinder = makeGrinder(P.grinder1, P.grinder2, tex);
   giant = makeGiantLog(tex);
@@ -264,6 +278,7 @@ function updateHero(t, dt, auto) {
   if (moving && !input.active) h.heading += wrapA(Math.atan2(h.vel[0], h.vel[1]) - h.heading) * Math.min(1, dt * 12);
   const tx = -h.vel[0] * 0.06, tz = -h.vel[1] * 0.06;
   h.sway[0] += (tx - h.sway[0]) * Math.min(1, dt * 6); h.sway[1] += (tz - h.sway[1]) * Math.min(1, dt * 6);
+  h.spr += ((h.goods.n && h.cash.n ? 1 : 0) - h.spr) * (1 - Math.exp(-dt / 0.1));   // 两样都有才并排
   h.c.play(moving ? 'run' : 'idle', 0.15, moving ? 1.15 : 1);
   h.c.obj.position.set(h.p[0], 0, h.p[1]); h.c.obj.rotation.y = h.heading; h.c.update(dt);
   if (POSE) { const a = h.c.actions[POSE.clip]; for (const x of Object.values(h.c.actions)) if (x !== a) x.stop(); a.reset(); a.play(); a.setEffectiveWeight(1); a.time = POSE.t; h.c.mixer.update(0); h.c.obj.rotation.y = POSE.yaw; }   // ?pose=run&pt=0.3：定住一个姿势看手脚
