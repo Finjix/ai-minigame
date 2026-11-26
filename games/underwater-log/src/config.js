@@ -53,14 +53,14 @@ export const ORDER = ['wood', 'left', 'c2', 'right', 'up'];   // 地块出现 / 
 
 export const T = {
   walk: 4.6, walkCarry: 4.3,
-  logCap: 6, meatCap: 6,
+  // 主角背东西不设上限（用户 11-26）：木头、熟肉、钞票都是有多少拿多少
   pickDt: 0.09, feedDt: 0.11, serveDt: 0.1, cashDt: 0.03, payDt: 0.035,
   grindDt: [0.42, 0.24],            // 研磨机每多久出一根木头（1 级、2 级）
   pileCap: 18,
   batch: 0.8,                      // 烤一批（两块）多久
   logsPerBatch: 2,
   trayCap: 12,
-  billPer: 5,                      // 一个顾客给几捆钞票（一捆 = 1）
+  billPer: 4,                      // 一个顾客给几捆钞票（一捆 = 1）
   beltV: 2.0, beltDt: 0.4,
   endAfter: 2.4, cap: 90, idle: 2,
 };

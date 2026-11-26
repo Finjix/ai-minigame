@@ -1,4 +1,4 @@
-// 场景里的玩法提示和特效（参考试玩的画法：地块、目标光圈、地上的箭头路、交接区圆圈；成片的红色捕鱼扇形、虚线框）
+// 场景里的玩法提示和特效（地块、目标光圈、地上的箭头路、交接区圆圈；成片的红色捕鱼扇形、虚线框）
 import * as THREE from 'three';
 import { scene, camera, WATER_Y } from './world.js';
 import { createCanvas } from '../../../shared/playable/platform.js';
@@ -8,7 +8,7 @@ import { backOut, clamp01, smooth, lerp } from '../../../shared/playable/util.js
 const canvasTex = (w, h, draw) => { const c = createCanvas(w, h), g = c.getContext('2d'); draw(g); const t = new THREE.Texture(c); t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; t.anisotropy = 4; return t; };
 const flat = (w, h) => { const g = new THREE.PlaneGeometry(w, h); g.rotateX(-Math.PI / 2); return g; };
 
-// ------------------------------------------------------------------ 地块图标（参考试玩 Y6）
+// ------------------------------------------------------------------ 地块图标
 const ICON = {
   worker: (t) => { t.fillStyle = '#fff'; t.beginPath(); t.arc(118, 70, 28, 0, 7); t.fill(); t.beginPath(); t.moveTo(58, 160); t.bezierCurveTo(58, 104, 178, 104, 178, 160); t.closePath(); t.fill(); plus(t, 186, 64, 44, 15); },
   conv: (t) => { t.fillStyle = '#fff'; t.save(); t.transform(1, 0, -0.18, 1, 20, 0); for (let r = 0; r < 4; r++) { rr(t, 70 + r * 30, 76, 27, 48, 10); t.fill(); } t.restore(); rr(t, 60, 124, 134, 32, 16); t.fill();
@@ -20,7 +20,7 @@ function plus(t, r, s, o = 50, c = 16) { t.fillStyle = '#fff'; rr(t, r - o / 2, 
 const ICON_BB = {};
 function iconCanvas(k) { const c = createCanvas(256, 256), g = c.getContext('2d'); ICON[k](g); ICON_BB[k] = [30, 30, 230, 180]; return c; }
 
-// 地块（参考试玩 G3）：深色圆角底 + 四角白括号（买的时候变绿）+ 图标 + 钞票 + 价格；付了多少从下往上涨绿色
+// 地块：深色圆角底 + 四角白括号（买的时候变绿）+ 图标 + 钞票 + 价格；付了多少从下往上涨绿色
 function drawTile(g, icon, price, fill, on) {
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 320, 320); g.translate(32, 32);
   rr(g, 18, 18, 220, 220, 22); g.fillStyle = 'rgba(28,30,36,0.72)'; g.fill();
@@ -62,7 +62,7 @@ export class Tile {
   }
 }
 
-// ------------------------------------------------------------------ 交接区圆圈（参考试玩 wB：虚线圈 + 图标，人站进去变绿，满了闪红）
+// ------------------------------------------------------------------ 交接区圆圈（虚线圈 + 图标，人站进去变绿，满了闪红）
 const RING_T = canvasTex(256, 256, (t) => { t.lineCap = 'round'; for (const [s, o] of [[26, 'rgba(16,24,32,0.42)'], [12, '#ffffff']]) { t.lineWidth = s; t.strokeStyle = o; for (let c = 0; c < 20; c++) { const h = c / 20 * Math.PI * 2; t.beginPath(); t.arc(128, 128, 112, h, h + Math.PI * 2 / 20 * 0.55); t.stroke(); } } });
 const WHITE = new THREE.Color('#ffffff'), GREEN = new THREE.Color('#1fff19'), RED = new THREE.Color('#ff2a1a');
 export class Zone {
@@ -104,7 +104,7 @@ export class StandBox {
   }
 }
 
-// ------------------------------------------------------------------ 目标光圈（参考试玩 Nx）
+// ------------------------------------------------------------------ 目标光圈
 const targetMat = new THREE.ShaderMaterial({
   uniforms: { uT: { value: 0 }, uA: { value: 0 }, uC: { value: new THREE.Color('#fff0b8') } },
   vertexShader: 'varying vec2 vU; void main(){ vU = uv * 2.0 - 1.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
@@ -135,7 +135,7 @@ export function updateTarget(t, dt, tgt, heroP) {
   targetRing.scale.setScalar((targetRing.userData.R || 1) * (0.6 + 0.4 * a)); targetMat.uniforms.uT.value = t; targetMat.uniforms.uA.value = ringV * clamp01(a); targetRing.visible = true;
 }
 
-// ------------------------------------------------------------------ 地上的箭头路（参考试玩 Hx：黄底棕边的人字纹顺着走的方向流）
+// ------------------------------------------------------------------ 地上的箭头路（黄底棕边的人字纹顺着走的方向流）
 const NSEG = 90, HALF = 0.18 * 0.6 / 0.46 * 0.6;
 const pathPos = new Float32Array(NSEG * 2 * 3), pathU = new Float32Array(NSEG * 2 * 2);
 const pathGeo = new THREE.BufferGeometry();

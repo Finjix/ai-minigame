@@ -7,6 +7,7 @@ import { L } from './config.js';
 import { propGeo, bakedGeo } from './items.js';
 import { makeChar, proto } from './chars.js';
 import { hash, clamp01, smooth, lerp } from '../../../shared/playable/util.js';
+import { createCanvas } from '../../../shared/playable/platform.js';
 
 const lam = (o, look) => realLook(new THREE.MeshLambertMaterial(o), look);
 
@@ -197,6 +198,26 @@ export function along(P, s) {
   return [lerp(a[0], b[0], k), lerp(a[1], b[1], k), Math.atan2(b[0] - a[0], b[1] - a[1])];
 }
 export const BELT_Y = 0.16;
+// 履带贴图（成片 15、30 秒：炭灰色橡胶，一条条浅一点的横板，板缝深，两边压暗）。原来用源工程 GLB 里的履带贴图压暗，压出来几乎是纯黑
+let beltTex = null;
+function beltTexture() {
+  if (beltTex) return beltTex;
+  const W = 256, H = 128, c = createCanvas(W, H), g = c.getContext('2d');
+  g.fillStyle = 'rgb(54,55,59)'; g.fillRect(0, 0, W, H);
+  const N = 3, P = W / N;   // 一张贴图横向是带子宽那么长（0.82 米），3 块横板
+  for (let k = 0; k < N; k++) {
+    const x = k * P;
+    const gr = g.createLinearGradient(x, 0, x + P, 0); gr.addColorStop(0, 'rgb(96,97,102)'); gr.addColorStop(0.18, 'rgb(84,85,90)'); gr.addColorStop(0.8, 'rgb(70,71,76)'); gr.addColorStop(1, 'rgb(62,63,67)');
+    g.fillStyle = gr; g.fillRect(x + 4, 6, P - 10, H - 12);
+    g.fillStyle = 'rgb(22,22,25)'; g.fillRect(x + P - 6, 0, 6, H);            // 板缝
+    g.fillStyle = 'rgba(150,150,156,0.55)'; g.fillRect(x + 4, 6, 2, H - 12);   // 板前沿的亮边
+  }
+  const ed = g.createLinearGradient(0, 0, 0, H); ed.addColorStop(0, 'rgba(0,0,0,0.45)'); ed.addColorStop(0.12, 'rgba(0,0,0,0)'); ed.addColorStop(0.88, 'rgba(0,0,0,0)'); ed.addColorStop(1, 'rgba(0,0,0,0.45)');
+  g.fillStyle = ed; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 1400; i++) { const v = hash(i * 1.37), x = hash(i * 2.71) * W, y = hash(i * 3.91) * H; g.fillStyle = v < 0.5 ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.06)'; g.fillRect(x, y, 2, 1); }
+  beltTex = new THREE.Texture(c); beltTex.colorSpace = THREE.SRGBColorSpace; beltTex.wrapS = beltTex.wrapT = THREE.RepeatWrapping; beltTex.anisotropy = 4; beltTex.needsUpdate = true;
+  return beltTex;
+}
 export function makeBelt(path, tx, { w = 0.82 } = {}) {
   const P = smoothPath(path);
   const n = P.pts.length, pos = [], uv = [], ix = [], rail = [], railIx = [];
@@ -205,18 +226,20 @@ export function makeBelt(path, tx, { w = 0.82 } = {}) {
     const dx = q[0] - o[0], dz = q[1] - o[1], dl = Math.hypot(dx, dz) || 1, nx = -dz / dl, nz = dx / dl;
     pos.push(p[0] + nx * w / 2, BELT_Y, p[1] + nz * w / 2, p[0] - nx * w / 2, BELT_Y, p[1] - nz * w / 2);
     uv.push(P.len[i] / w, 0, P.len[i] / w, 1);
-    for (const sd of [1, -1]) { const ex = p[0] + nx * sd * (w / 2 + 0.05), ez = p[1] + nz * sd * (w / 2 + 0.05); rail.push(ex, BELT_Y + 0.06, ez, ex, 0.0, ez); }
-    if (i < n - 1) { const r = i * 2; ix.push(r, r + 2, r + 1, r + 1, r + 2, r + 3); const k = i * 4; railIx.push(k, k + 4, k + 1, k + 1, k + 4, k + 5, k + 2, k + 3, k + 6, k + 3, k + 7, k + 6); }
+    // 两边钢架：外侧面（地面到顶）+ 顶面（往里 0.07 米），顶面朝上受光就是成片里那条亮边
+    for (const sd of [1, -1]) { const ox = p[0] + nx * sd * (w / 2 + 0.06), oz = p[1] + nz * sd * (w / 2 + 0.06), ix_ = p[0] + nx * sd * (w / 2 - 0.01), iz = p[1] + nz * sd * (w / 2 - 0.01); rail.push(ox, 0.0, oz, ox, BELT_Y + 0.05, oz, ix_, BELT_Y + 0.05, iz); }
+    if (i < n - 1) { const r = i * 2; ix.push(r, r + 2, r + 1, r + 1, r + 2, r + 3); const k = i * 6;
+      for (const o of [0, 3]) { const a = k + o, b = k + 6 + o; railIx.push(a, b, a + 1, a + 1, b, b + 1, a + 1, b + 1, a + 2, a + 2, b + 1, b + 2); } }
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(ix); g.computeVertexNormals();
-  const map = tx.belt.clone(); map.wrapS = map.wrapT = THREE.RepeatWrapping; map.needsUpdate = true;
-  const belt = new THREE.Mesh(g, lam({ map, color: 0xb0b4bc })); belt.castShadow = true;
+  const map = beltTexture().clone(); map.needsUpdate = true;
+  const belt = new THREE.Mesh(g, lam({ map })); belt.castShadow = true;
   const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rail, 3)); rg.setIndex(railIx); rg.computeVertexNormals();
-  const rails = new THREE.Mesh(rg, lam({ color: 0x3c4048, side: THREE.DoubleSide })); rails.castShadow = true;
+  const rails = new THREE.Mesh(rg, lam({ color: 0x5a554f, side: THREE.DoubleSide })); rails.castShadow = true;
   const grp = new THREE.Group(); grp.add(belt, rails); scene.add(grp);
   // 从起点往终点铺开：按 drawRange 露出前 k 段
   const segs = n - 1;
-  return { P, grp, map, set(k) { const m = Math.max(0, Math.round(segs * k)); g.setDrawRange(0, m * 6); rg.setDrawRange(0, m * 12); grp.visible = m > 0; }, scroll(dt, v) { map.offset.x -= dt * v / w; } };
+  return { P, grp, map, set(k) { const m = Math.max(0, Math.round(segs * k)); g.setDrawRange(0, m * 6); rg.setDrawRange(0, m * 24); grp.visible = m > 0; }, scroll(dt, v) { map.offset.x -= dt * v / w; } };
 }
 
 // ------------------------------------------------------------------ 炉膛的火：正面窗口里一层加色的噪声火苗（底图里已经有 AI 画的写实炭火当底），添柴时窜一下

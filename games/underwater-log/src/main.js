@@ -1,5 +1,5 @@
 // 入口：加载页 → 建场 → 每帧（输入 / 自动玩 → 玩法 → 镜头 → 3D → 界面）
-// 试玩外壳照参考试玩（shared/playable），按定稿规则：开场就自动玩，自动玩期间一律显示「轻划移动」和滑动手势；手一碰就交给玩家，停手 2 秒又自动玩；
+// 试玩外壳用 shared/playable，按定稿规则：开场就自动玩，自动玩期间一律显示「轻划移动」和滑动手势；手一碰就交给玩家，停手 2 秒又自动玩；
 // 没有「我来操作！」按钮；左上 logo 下和结束页都有「立即体验」（微信里也显示）；最后一个地块买完 2.4 秒（或者满 90 秒）强制结束。
 import '../../../shared/playable/adapter.js';
 import * as THREE from 'three';
@@ -7,7 +7,7 @@ import { initRenderer, initCamera, initEnv, initLights, render, setView, toUI, b
 import * as world from './world.js';
 import * as UI from '../../../shared/playable/ui.js';
 import * as LD from '../../../shared/playable/loader.js';
-import { proto } from './chars.js';
+import { proto, fixSkinWeights } from './chars.js';
 import { initItems } from './items.js';
 import * as GM from './game.js';
 import { crowd } from './crowd.js';
@@ -25,7 +25,7 @@ let t0 = 0, last = 0, gameT = 0, coverA = 1, readyT = -1, progress = 0.05, shown
 const si = sysInfo();
 const toL = (p) => [p.x * W / si.w, p.y * H / si.h];
 
-// ------------------------------------------------------------------ 布局（参考试玩）
+// ------------------------------------------------------------------ 布局
 const ui = { x: 28, y: 34, w: 300, h: 89 }, hi = { x: 44, y: 0, w: 268, h: 82 };
 let HUDY = 92;
 
@@ -61,8 +61,9 @@ async function boot() {
   initEnv({ col: tex.col, dep: tex.dep });
   initLights();
   initItems(MD, tex);
+  // 主角跑步片段在 tools/assets.mjs 里裁成 0–0.8 秒那一圈
   const P = {
-    hero: proto(MD.hero, { height: 1.85, trims: { run: [0, 0.8] } }), cust: proto(MD.cust, { height: 1.22 }), crowd: proto(MD.crowd, { height: 1.22 }),
+    hero: proto(MD.hero, { height: 1.85 }), cust: proto(MD.cust, { height: 1.22 }), crowd: proto(MD.crowd, { height: 1.22 }),
     grinder1: proto(MD.grinder1, { scale: 1 }), grinder2: proto(MD.grinder2, { scale: 1 }),
     counter: MD.counter, stump2: MD.stump2, stump3: MD.stump3,
     heroTex: { V5_1_lan1: tex.heroFace, V5_1_lan_: tex.heroBody, '*': tex.heroBody }, custTex: { yi_lan2: tex.custBody, 门框: tex.custPlate, '*': tex.custBody },
@@ -77,7 +78,7 @@ async function boot() {
   startBgm();
 }
 
-// ------------------------------------------------------------------ 输入（参考试玩：任意处按下就是摇杆原点，拖 80 封顶，10 以内不动）
+// ------------------------------------------------------------------ 输入
 function touchStart(p) {
   resume();
   const [x, y] = toL(p);
@@ -149,7 +150,7 @@ function drawUI(t, rt) {
 const _a = [0, 0];
 function drawCrowdEmo(t) {
   if (flow.ended || !crowd.heads.length) return;
-  // 人群头上一阵阵冒生气的脸（人多肉少的压力，参考试玩 aU）
+  // 人群头上一阵阵冒生气的脸（人多肉少的压力）
   for (let s = 0; s < 7; s++) {
     const cyc = 2.5, o = s * cyc / 7 + hash(s) * 0.4, c = t + o, n = Math.floor(c / cyc), e = c - n * cyc;
     if (e > 1.9) continue;
@@ -208,7 +209,7 @@ function drawEnd(t) {
   if (o > 0.01) UI.spr('logoBig', W / 2, H * 0.4, { s: o });
   if (c > 0.01) UI.spr('btnEnd', W / 2, H * 0.55, { s: c * (1 + 0.05 * Math.sin(r * 6)) });
 }
-// 加载页（参考试玩：模糊压暗的场景图 + 飘雪 + logo + 进度条 + 「加载中 N%」）
+// 加载页
 function drawLoading(rt) {
   UI.setCover(coverA);
   shown += (Math.min(0.97, progress + 0.12) - shown) * (shown < progress ? 0.3 : 0.025) * 0.6; if (progress >= 1) shown = 1;
@@ -284,5 +285,5 @@ function frame() {
   if (!isWx && window.__cap) { const f = window.__cap; window.__cap = null; f(world.canvas.toDataURL('image/jpeg', 0.82)); }
 }
 function fail(e) { failed = true; console.error('playable fail:', e); if (isWx) gameEnd(); }
-const DBG = (isWx ? GameGlobal : window).__dbg = { UI, GM, world, flow, T, paused: false, look: null, st: () => ({ coverA, readyT, ready, progress, shown, gameT, frames }) };
+const DBG = (isWx ? GameGlobal : window).__dbg = { UI, GM, world, flow, T, LD, fixSkinWeights, paused: false, look: null, st: () => ({ coverA, readyT, ready, progress, shown, gameT, frames }) };
 boot().catch((e) => { console.error(e); fail(e); });

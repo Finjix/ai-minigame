@@ -1,5 +1,5 @@
 // 入口：加载页 → 建场 → 每帧（输入 / 自动玩 → 玩法 → 镜头 → 3D → 界面）
-// 试玩流程照参考试玩：开场就自动玩，自动玩期间一律显示「轻划移动」引导；手一碰就交给玩家，停手 2 秒又自动玩（没有「我来操作！」按钮）；
+// 试玩流程：开场就自动玩，自动玩期间一律显示「轻划移动」引导；手一碰就交给玩家，停手 2 秒又自动玩（没有「我来操作！」按钮）；
 // 左上和结束页都有「立即体验」；最后一个地块买完 2.4 秒（或者满 90 秒）强制结束：压暗 + 大 logo，微信里通知平台试玩结束。
 import '../../../shared/playable/adapter.js';
 import * as THREE from 'three';
@@ -24,7 +24,7 @@ let t0 = 0, last = 0, gameT = 0, coverA = 1, readyT = -1, progress = 0.05, shown
 const si = sysInfo();
 const toL = (p) => [p.x * W / si.w, p.y * H / si.h];
 
-// ------------------------------------------------------------------ 布局（参考试玩）
+// ------------------------------------------------------------------ 布局
 const ui = { x: 28, y: 34, w: 300, h: 89 }, hi = { x: 44, y: 0, w: 268, h: 82 };
 let HUDY = 92;
 
@@ -77,7 +77,7 @@ async function boot() {
   startBgm();
 }
 
-// ------------------------------------------------------------------ 输入（参考试玩：任意处按下就是摇杆原点，拖 80 封顶，10 以内不动）
+// ------------------------------------------------------------------ 输入
 function touchStart(p) {
   resume();
   const [x, y] = toL(p);
@@ -150,7 +150,7 @@ const _a = [0, 0];
 function drawCrowdEmo(t) {
   if (flow.ended) return;
   const S = GM.state(), C = S.crowd;
-  // 人群头上一阵阵冒生气的脸（人多货少的压力，参考试玩 aU），送了货的冒笑脸 / 爱心眼
+  // 人群头上一阵阵冒生气的脸（人多货少的压力），送了货的冒笑脸 / 爱心眼
   for (let s = 0; s < 7; s++) {
     const cyc = 2.5, o = s * cyc / 7 + hash(s) * 0.4, c = t + o, n = Math.floor(c / cyc), e = c - n * cyc;
     if (e > 1.9) continue;
@@ -211,7 +211,7 @@ function drawEnd(t) {
   if (o > 0.01) UI.spr('logoBig', W / 2, H * 0.4, { s: o });
   if (c > 0.01) UI.spr('btnEnd', W / 2, H * 0.55, { s: c * (1 + 0.05 * Math.sin(r * 6)) });
 }
-// 加载页（参考试玩：模糊压暗的场景图 + 飘雪 + logo + 进度条 + 「加载中 N%」）
+// 加载页
 function drawLoading(rt) {
   UI.setCover(coverA);
   shown += (Math.min(0.97, progress + 0.12) - shown) * (shown < progress ? 0.3 : 0.025) * 0.6; if (progress >= 1) shown = 1;

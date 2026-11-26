@@ -27,11 +27,11 @@ function pruneAnim(doc, { eps = 1e-3, dropMinor = true, dropClips = [], minorRe 
       const rest = path === 'translation' ? node.getTranslation() : path === 'rotation' ? node.getRotation() : path === 'scale' ? node.getScale() : null;
       let drop = dropMinor && minorRe.test(node.getName());
       if (!drop && rest) {
-        const k = rest.length, n = out.length / k; let same = true;
-        for (let i = 0; i < n && same; i++) for (let j = 0; j < k; j++) {
-          let d = Math.abs(out[i * k + j] - rest[j]);
-          if (path === 'rotation') d = Math.min(d, Math.abs(out[i * k + j] + rest[j]));
-          if (d > (path === 'translation' ? eps * 10 : eps)) { same = false; break; }
+        // 四元数 q 和 -q 是同一个转动：整组比（原来逐分量取 min，会把不同的转动当成一样删掉，见 docs/lessons.md）
+        const k = rest.length, n = out.length / k, tol = path === 'translation' ? eps * 10 : eps; let same = true;
+        for (let i = 0; i < n && same; i++) {
+          let dp = 0, dm = 0; for (let j = 0; j < k; j++) { dp = Math.max(dp, Math.abs(out[i * k + j] - rest[j])); dm = Math.max(dm, Math.abs(out[i * k + j] + rest[j])); }
+          if ((path === 'rotation' ? Math.min(dp, dm) : dp) > tol) same = false;
         }
         drop = same;
       }

@@ -1,6 +1,6 @@
-// 2D 界面：小游戏只有一张上屏画布，界面不能另叠 DOM / 2D 画布。做法和参考试玩的 uigl 一样：
-// 开场把所有界面元素（参考试玩的画法原样搬过来）画进一张图集，每帧按顺序拼成一批四边形用 WebGL 画在 3D 上面。
-// 坐标是逻辑像素：宽 1080，高按屏幕比例（参考试玩同一套）。
+// 2D 界面：小游戏只有一张上屏画布，界面不能另叠 DOM / 2D 画布。做法：
+// 开场把所有界面元素画进一张图集，每帧按顺序拼成一批四边形用 WebGL 画在 3D 上面。
+// 坐标是逻辑像素：宽 1080，高按屏幕比例。
 // 所有游戏共用（shared/playable）。按定稿规则不做「我来操作！」按钮；游戏自己的精灵用 buildAtlas 的 extra(def, helpers) 加。
 import * as THREE from 'three';
 import { createCanvas } from './platform.js';
@@ -14,7 +14,7 @@ export function text(c, s, x, y, { size = 40, fill = '#fff', stroke = '#222', lw
   if (lw > 0) { c.lineWidth = lw; c.strokeStyle = stroke; c.strokeText(s, x, y); }
   c.fillStyle = fill; c.fillText(s, x, y); c.restore();
 }
-// 参考试玩的绿钞票图标（XA）
+// 绿钞票图标
 export function bill(t, r, s, o) {
   t.save(); t.translate(r, s); t.lineJoin = 'round';
   const c = o * 2, h = o * 1.15;

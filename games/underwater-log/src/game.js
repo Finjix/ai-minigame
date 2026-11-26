@@ -13,7 +13,7 @@ import { buildCrowd, updateCrowd, crowd } from './crowd.js';
 import { makeGrinder, makeGiantLog, makeBackPosts, makeCounter2, makePadlock, makeBelt, along, BELT_Y, makeFire } from './props.js';
 import { Tile, Zone, flash, puff, splash, goldGlow, updateFx, updateTarget, updatePath, iconTex } from './fx.js';
 import { play } from '../../../shared/playable/audio.js';
-import { report } from '../../../shared/playable/platform.js';
+import { report, query } from '../../../shared/playable/platform.js';
 import { dist, clamp01, lerp, hash, inRect, wrapA, backOut, smooth } from '../../../shared/playable/util.js';
 
 export const G = { t: 0, ended: false, endAt: Infinity, unlocked: {}, served: 0, target: null, first: {} };
@@ -44,7 +44,12 @@ export function build(protos, tex) {
   padlock = makePadlock();
   fire = makeFire();
   // 木材堆：托板上横放，一层 5 根
-  pile = new Stack(() => [L.pile.c[0], L.pile.top, L.pile.c[1], 0], SIZE.log.h * 0.92, { cols: [-0.36, -0.18, 0, 0.18, 0.36].map((z) => [0, z]) });
+  pile = new Stack(() => [L.pile.c[0], L.pile.top, L.pile.c[1], Math.PI / 2], SIZE.log.h * 0.92);
+  pile.slot = (i) => () => {   // 木头顺着托板（z 方向）放，一层 7 / 6 / 5 根往上收，上一层落在下一层两根之间（成片 15 秒）
+    let L0 = 0, k = i; while (L0 < 2 && k >= 7 - L0) { k -= 7 - L0; L0++; }
+    const n = 7 - L0, gap = 0.17;
+    return [L.pile.c[0] + (k - (n - 1) / 2) * gap, L.pile.top + L0 * SIZE.log.h * 0.85, L.pile.c[1], Math.PI / 2, 0];
+  };
   for (let i = 0; i < 10; i++) pile.put(new Item('log', [L.pile.c[0], 0.2, L.pile.c[1]], { ry: 0 }));
   // 生肉托板：2 × 3 摞
   for (let k = 0; k < 6; k++) {
@@ -245,11 +250,12 @@ function steer(e, tgt, speed, dt, r = 0.12) {
 
 // ------------------------------------------------------------------ 主角每帧
 export const input = { vx: 0, vz: 0, active: false };
+export const POSE = query.pose ? { clip: query.pose, t: +(query.pt || 0), yaw: +(query.py || 0.6) } : null;
 function updateHero(t, dt, auto) {
   const h = hero, sp = h.goods.n ? T.walkCarry : T.walk;
   let moving = false;
   const p0 = [...h.p];
-  if (G.ended) { /* 站着 */ }
+  if (G.ended || POSE) { /* 站着 */ }
   else if (input.active) {
     const l = Math.hypot(input.vx, input.vz);
     if (l > 0.05) { const vx = input.vx / l * sp * Math.min(1, l), vz = input.vz / l * sp * Math.min(1, l); moveChar(h, vx, vz, dt); h.heading += wrapA(Math.atan2(vx, vz) - h.heading) * Math.min(1, dt * 14); }
@@ -260,11 +266,11 @@ function updateHero(t, dt, auto) {
   h.sway[0] += (tx - h.sway[0]) * Math.min(1, dt * 6); h.sway[1] += (tz - h.sway[1]) * Math.min(1, dt * 6);
   h.c.play(moving ? 'run' : 'idle', 0.15, moving ? 1.15 : 1);
   h.c.obj.position.set(h.p[0], 0, h.p[1]); h.c.obj.rotation.y = h.heading; h.c.update(dt);
+  if (POSE) { const a = h.c.actions[POSE.clip]; for (const x of Object.values(h.c.actions)) if (x !== a) x.stop(); a.reset(); a.play(); a.setEffectiveWeight(1); a.time = POSE.t; h.c.mixer.update(0); h.c.obj.rotation.y = POSE.yaw; }   // ?pose=run&pt=0.3：定住一个姿势看手脚
   h.kind = h.goods.n ? h.goods.items[0].type : null;
   // 取木头（还没有送柴传送带的时候）
   if (!G.unlocked.wood && (!h.kind || h.kind === 'log') && dist(h.p, L.padA.c) < L.padA.r + 0.25 && pile.n && t >= (h.nx.pick || 0)) {
-    if (h.goods.n < T.logCap) { const it = pile.pop(); h.goods.add(it, 0.32, 1.1); h.nx.pick = t + T.pickDt; play('wood', { vol: 0.4, gap: 0.05 }); first('log', 2002); }
-    if (h.goods.n >= T.logCap) markFull(t);
+    const it = pile.pop(); h.goods.add(it, 0.32, 1.1); h.nx.pick = t + T.pickDt; play('wood', { vol: 0.4, gap: 0.05 }); first('log', 2002);   // 背木头不设上限
   }
   // 添柴
   if (h.kind === 'log' && dist(h.p, L.feed) < 0.95 && t >= (h.nx.feed || 0)) {
@@ -274,8 +280,7 @@ function updateHero(t, dt, auto) {
   // 拿熟肉
   if ((!h.kind || h.kind === 'cooked') && inRect(h.p, [L.tray.c[0] - L.tray.size[0] / 2, L.tray.c[0] + L.tray.size[0] / 2, L.tray.c[1] - L.tray.size[1] / 2, L.tray.c[1] + L.tray.size[1] / 2], 0.15) && tray.n && t >= (h.nx.tray || 0)) {
     const top = tray.items[tray.n - 1];
-    if (!top.fly && h.goods.n < T.meatCap) { tray.pop(); h.goods.add(top, 0.3, 1.0); h.nx.tray = t + T.pickDt; play('drop', { vol: 0.45, gap: 0.05 }); first('meat', 2004); }
-    if (h.goods.n >= T.meatCap) markFull(t);
+    if (!top.fly) { tray.pop(); h.goods.add(top, 0.3, 1.0); h.nx.tray = t + T.pickDt; play('drop', { vol: 0.45, gap: 0.05 }); first('meat', 2004); }
   }
   // 上柜台、收钱
   for (let ci = 0; ci < 2; ci++) {
@@ -305,7 +310,6 @@ function updateHero(t, dt, auto) {
     }
   }
 }
-function markFull(t) { if (t - hero.full > 1.6) { hero.full = t; play('warn', { vol: 0.35 }); } }
 function first(k, code) { if (!G.first[k]) { G.first[k] = G.t; report(code); } }
 
 // ------------------------------------------------------------------ 解锁
@@ -358,13 +362,13 @@ export function chooseTarget() {
   if (tl && money >= tl.left) return { kind: 'tile', p: tl.c, r: 0.15 };
   const kind = h.goods.n ? h.goods.items[0].type : null;
   const serveCi = () => (G.unlocked.c2 && !G.unlocked.right && waitingCount(1) >= waitingCount(0) ? 1 : 0);
-  if (kind === 'log') return h.goods.n < T.logCap && pile.n && dist(h.p, L.padA.c) < 1.0 ? { kind: 'padA', p: L.padA.c, r: 0.2 } : { kind: 'feed', p: L.feed, r: 0.2 };   // 背满了再去添柴
+  if (kind === 'log') return pile.n && dist(h.p, L.padA.c) < 1.0 ? { kind: 'padA', p: L.padA.c, r: 0.2 } : { kind: 'feed', p: L.feed, r: 0.2 };   // 木材堆拿空了再去添柴
   const cookingSoon = oven.busy || oven.fuel >= T.logsPerBatch || (G.unlocked.wood && (pile.n || belts.wood.ride.length));
   if (kind === 'cooked') {
     for (let ci = 0; ci < 2; ci++) if ((ci === 0 || G.unlocked.c2) && dist(h.p, L.serve[ci]) < 1.1) return { kind: 'serve', p: L.serve[ci], r: 0.25 };   // 到了柜台就放完再走
     if (G.lastK === 'serve' && G.target) return G.target;   // 已经往柜台走了就别回头
     const atTray = inRect(h.p, [L.tray.c[0] - 1.1, L.tray.c[0] + 1.1, L.tray.c[1] - 1.1, L.tray.c[1] + 1.1]);
-    if (h.goods.n < T.meatCap && (tray.n || (atTray && cookingSoon && h.goods.n < 4))) return { kind: 'tray', p: L.tray.c, r: 0.3 };   // 托盘空了、手上已经有 4 块就先去送
+    if (tray.n || (atTray && cookingSoon && h.goods.n < 4)) return { kind: 'tray', p: L.tray.c, r: 0.3 };   // 托盘空了、手上已经有 4 块就先去送
     const ci = serveCi(); return { kind: 'serve', p: L.serve[ci], r: 0.25 };
   }
   // 空手（或只背着钱）：在柜台前、这边还有人在吃肉 / 钱还在飞，就等着收完

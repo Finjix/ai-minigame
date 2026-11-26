@@ -451,7 +451,7 @@ function updateWorkers(t, dt) {
   }
 }
 
-// ------------------------------------------------------------------ 自动玩 / 引导的目标（参考试玩 fB 的思路：手上有什么先交什么，钱够就去买地块）
+// ------------------------------------------------------------------ 自动玩 / 引导的目标（手上有什么先交什么，钱够就去买地块）
 function nextTile() { for (const id of ORDER) { const tl = tiles[id]; if (tl.visible && !tl.done) return tl; } return null; }
 export function chooseTarget() {
   const h = hero, cap = heroCap(), tl = nextTile(), money = h.cash.n * T.billVal, standC = [(L.stand[0] + L.stand[1]) / 2, (L.stand[2] + L.stand[3]) / 2];

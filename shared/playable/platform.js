@@ -92,7 +92,7 @@ export function onShowHide(show, hide) {
 }
 export function vibrate() { try { if (isWx) wx.vibrateShort && wx.vibrateShort({ type: 'light' }); else navigator.vibrate && navigator.vibrate(30); } catch (e) {} }
 
-// ---- 试玩平台接口（和参考试玩一致）
+// ---- 试玩平台接口
 const T0 = now();
 const reported = new Set();
 export function report(id, result = 1, once = true) {
