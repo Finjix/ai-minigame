@@ -8,12 +8,13 @@
     "serve": "node tools/serve.mjs"
   },
   "devDependencies": {
-    "three": "0.186.1",
-    "esbuild": "^0.25.0",
     "@gltf-transform/core": "4.5.1",
-    "@gltf-transform/functions": "4.5.1",
     "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
+    "esbuild": "^0.25.0",
     "meshoptimizer": "^0.22.0",
-    "sharp": "^0.34.0"
+    "puppeteer-core": "^25.12.0",
+    "sharp": "^0.34.0",
+    "three": "0.186.1"
   }
 }

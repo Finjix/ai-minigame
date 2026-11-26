@@ -134,7 +134,7 @@ export function updateItems(t) {
 // ------------------------------------------------------------------ 栈：一摞东西（主角背上、木材堆、托盘、柜台……）
 // base() → [x, y, z, ry]；第 i 层 = 底 + 层距 × i；cols：每层几个位（本地 [左右, 前后]，跟着 ry 转）；sway：[dx, dz]，顶上晃得最多
 export class Stack {
-  constructor(base, gap, { cols = null, sway = null, rx = 0, ryOff = 0, gapOf = null } = {}) { this.base = base; this.gap = gap; this.items = []; this.cols = cols; this.sway = sway; this.rx = rx; this.ryOff = ryOff; this.gapOf = gapOf; }
+  constructor(base, gap, { cols = null, sway = null, swayK = 1, rx = 0, ryOff = 0, gapOf = null } = {}) { this.base = base; this.gap = gap; this.items = []; this.cols = cols; this.sway = sway; this.swayK = swayK; this.rx = rx; this.ryOff = ryOff; this.gapOf = gapOf; }
   get n() { return this.items.length; }
   slot(i) {
     return () => {
@@ -142,7 +142,7 @@ export class Stack {
       let x = b[0], y = b[1], z = b[2], k = i;
       if (this.cols) { const c = i % this.cols.length; k = Math.floor(i / this.cols.length); const [a, f] = this.cols[c]; x += a * Math.cos(ry) + f * Math.sin(ry); z += -a * Math.sin(ry) + f * Math.cos(ry); }
       y += k * (this.gapOf ? this.gapOf(this.items[i]) : this.gap);
-      if (this.sway) { const n = Math.max(1, this.items.length), f = (k / Math.max(6, n)) ** 1.6 * Math.min(n, 30) * this.gap * 0.55; x += this.sway[0] * f; z += this.sway[1] * f; }
+      if (this.sway) { const n = Math.max(1, this.items.length), f = (k / Math.max(6, n)) ** 1.6 * Math.min(n, 30) * this.gap * 0.55 * this.swayK; x += this.sway[0] * f; z += this.sway[1] * f; }
       return [x, y, z, ry + this.ryOff, this.rx];
     };
   }

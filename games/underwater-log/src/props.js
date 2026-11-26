@@ -90,7 +90,7 @@ export function makeGrinder(P1, P2, tx) {
 export function makeGiantLog(tx) {
   const R0 = L.log.r0, H = L.log.h, YB = 1.65, D = 3.6;
   const side = new THREE.CylinderGeometry(1, 1, H + D, 56, 40, true); side.translate(0, (H - D) / 2, 0);
-  const uni = { uR: { value: R0 }, uR0: { value: R0 }, uYB: { value: YB } };
+  const uni = { uR: { value: R0 }, uR0: { value: R0 }, uYB: { value: YB }, uFade: { value: 0 } };
   const sm = lam({ map: tx.bark });
   const prev = sm.onBeforeCompile;
   sm.onBeforeCompile = (sh, r) => {
@@ -100,23 +100,27 @@ export function makeGiantLog(tx) {
   float rr_ = mix(uR0, uR, smoothstep(uYB - 0.55, uYB + 0.03, position.y)); transformed.xz *= rr_;
   vSv = clamp((uR0 - rr_) / max(0.05, uR0 - uR), 0.0, 1.0) * step(0.02, uR0 - uR);`)
       .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvW = (modelMatrix * vec4(transformed, 1.0)).xyz; vU2 = uv;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tCore; varying vec3 vW; varying vec2 vU2; varying float vSv;')
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tCore; uniform float uFade; varying vec3 vW; varying vec2 vU2; varying float vSv;')
       .replace('#include <map_fragment>', `{ vec4 b = texture2D(map, vec2(vU2.x * 3.0, vW.y * 0.45));
     float g = dot(texture2D(tCore, vec2(vU2.x * 2.0, vW.y * 0.6)).rgb, vec3(0.333));
     vec3 core = vec3(0.62, 0.46, 0.33) * (0.82 + 0.4 * g) * (0.93 + 0.07 * sin(vW.y * 46.0));   // 浅色木芯（成片：磨过的地方是浅黄棕、带一圈圈细纹）
-    diffuseColor.rgb *= mix(b.rgb * vec3(0.92, 0.88, 0.85), core, smoothstep(0.08, 0.35, vSv)); }`)
+    // 树皮慢慢淡出（成片 5.5–6.5 秒：新冒出来那根整圈树皮，磨鼓咬上以后约 1 秒里一片片褪掉，树皮深缝留得最久）：
+    // uFade 按磨掉的深度涨（磨掉 0.4 米褪完，1 级约 1.6 秒），再拿树皮亮度打散，亮的先褪、深缝后褪
+    float bl = dot(b.rgb, vec3(0.333)), s_ = smoothstep(0.08, 0.35, vSv) * uFade;
+    float kk = smoothstep(0.0, 1.0, s_ * 1.15 - 0.075 + (bl - 0.42) * 1.3 * (1.0 - s_));
+    diffuseColor.rgb *= mix(b.rgb * vec3(0.92, 0.88, 0.85), core, kk); }`)
       .replace('#include <opaque_fragment>', `if (vW.y < 0.02) { float k = smoothstep(0.02, -0.9, vW.y); outgoingLight = mix(outgoingLight, vec3(0.10, 0.20, 0.27), 0.5 + 0.48 * k); }
 #include <opaque_fragment>`);
     if (prev) prev(sh, r);
   };
-  sm.customProgramCacheKey = () => 'giantSide2';
+  sm.customProgramCacheKey = () => 'giantSide3';
   const cap = new THREE.CircleGeometry(1, 56); cap.rotateX(-Math.PI / 2); cap.translate(0, H, 0);
   const cm = lam({ map: tx.giantCap });
   const g = new THREE.Group(), sMesh = new THREE.Mesh(side, sm), capG = new THREE.Group(), cMesh = new THREE.Mesh(cap, cm);
   sMesh.castShadow = cMesh.castShadow = true; capG.add(cMesh); g.add(sMesh, capG); scene.add(g);
   // 贴水面那一圈白沫（源工程 logFoam）
   const foam = new THREE.Mesh(new THREE.TorusGeometry(R0 + 0.04, 0.08, 8, 64), lam({ color: 0xf4f8fb, emissive: 0x4a5a64 })); foam.rotation.x = Math.PI / 2; foam.scale.z = 0.45; foam.position.y = 0.05; scene.add(foam);
-  return { g, uni, set(x, z, R, y, rot) { foam.visible = y > -0.6; foam.position.set(x, 0.05, z); foam.scale.set(1, 1, 0.45 * (0.8 + 0.2 * Math.sin(rot * 7))); g.position.set(x, y, z); g.rotation.y = rot; uni.uR.value = R; capG.scale.set(R, 1, R); U.uLog.value.set(x, z, R0); } };
+  return { g, uni, set(x, z, R, y, rot) { foam.visible = y > -0.6; foam.position.set(x, 0.05, z); foam.scale.set(1, 1, 0.45 * (0.8 + 0.2 * Math.sin(rot * 7))); g.position.set(x, y, z); g.rotation.y = rot; uni.uR.value = R; uni.uFade.value = Math.min(1, Math.max(0, (R0 - R) / 0.4)); capG.scale.set(R, 1, R); U.uLog.value.set(x, z, R0); } };
 }
 
 // ------------------------------------------------------------------ 柜台后排木桩（源工程 STUMP_ROWS「后排营地」，裂桩 2、3 号混着；顾客挤的时候面前那根往营地里晃）

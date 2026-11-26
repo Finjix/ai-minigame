@@ -2,18 +2,19 @@
 // 先起本地服务：node tools/serve.mjs（8770）
 // 用法：node tools/shot.mjs <游戏名> "<网址参数>" "<等待条件 JS 表达式，能用 d = __dbg>" <输出.jpg> [张数] [两张之间隔几毫秒]
 //   node tools/shot.mjs underwater-log "zoom=0.3&speed=2" "(()=>{const h=d.GM.state().hero;return h.goods.n>=3&&h.cash.n>=4&&h.spr>0.97})()" build/x.jpg 3 700
-// 张数 > 1 时横着拼成一张。puppeteer-core 用水下巨木源工程 node_modules 里那份（只读），浏览器默认本机 Edge（CHROME_PATH 可改）
+// 张数 > 1 时横着拼成一张。puppeteer-core 在仓库 devDependencies 里，浏览器默认本机 Edge（CHROME_PATH 可改）
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-const PUP = process.env.PUPPETEER || 'D:/AI 3D 写实版 工程/水下巨木_写实投影版工程_V20/node_modules/puppeteer-core/lib/puppeteer/puppeteer-core.js';
-const { default: puppeteer } = await import(pathToFileURL(PUP).href);
+const { default: puppeteer } = await import('puppeteer-core');   // 仓库 devDependencies 里装了
 const [game, qs = '', cond = 'true', out = 'build/shot.jpg', nArg = '1', gapArg = '500'] = process.argv.slice(2);
+const EVAL = out === '--eval';   // 第 4 个参数写 --eval：等游戏起来以后算第 3 个参数的表达式，打印结果（不截图）
 const N = +nArg, GAP = +gapArg;
 const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true,
   args: ['--enable-gpu', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'], defaultViewport: { width: 405, height: 720, deviceScaleFactor: 2 } });
 const page = await browser.newPage();
 page.on('pageerror', (e) => console.error('[pageerror]', e.message));
 await page.goto(`http://127.0.0.1:${process.env.PORT || 8770}/games/${game}/index.html?raf=timer&${qs}`, { waitUntil: 'load' });
+if (EVAL) { const r = await page.evaluate(`(async () => { const wait = (ms) => new Promise((k) => setTimeout(k, ms)); while (!(window.__dbg && __dbg.st().ready)) await wait(50); const d = __dbg; return (${cond}); })()`); console.log(JSON.stringify(r, null, 1)); await browser.close(); process.exit(0); }
 const urls = await page.evaluate(`(async () => {
   const wait = (ms) => new Promise((k) => setTimeout(k, ms));
   while (!(window.__dbg && __dbg.st().ready)) await wait(50);
