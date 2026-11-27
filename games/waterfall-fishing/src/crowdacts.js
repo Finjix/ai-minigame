@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { makeChar } from './chars.js';
 import { ACTIONS, applyAction, undoAction, rootOffset } from './custactions.js';
-import { scene, addCaster, realLook } from './world.js';
+import { scene, realLook } from './world.js';
 
 const ACTS = ['raise', 'wave', 'bothUp', 'stomp', 'raise', 'bothUp'];   // 抽签用（举手、双手举起最看得见，多抽一点）
 const NF = 10;   // 每个动作烘几帧（每帧一个实例化网格；人群离得远，10 帧够顺）
@@ -61,7 +61,7 @@ export function buildCrowdActs(P, tex, crowd) {
       const m = new THREE.InstancedMesh(bakePose(c), mats, C.n);
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.count = 0; m.visible = false; m.castShadow = true; m.frustumCulled = false;
       m.setColorAt(0, _c.setRGB(1, 1, 1));
-      scene.add(m); addCaster(m); meshes[a].push(m);
+      scene.add(m); meshes[a].push(m);
     }
   }
   undoAction(c);

@@ -6,7 +6,7 @@
 //   升级：踩价格地块付钱 —— 200 雇渔工（自动往鱼框里捕鱼）→ 200 传送带（鱼框直送加工台）→ 400 售货员（自动送货），买完结束
 import * as THREE from 'three';
 import { L, T, ORDER, WATER_Y } from './config.js';
-import { scene, camera, toUI, SUN, realLook, addCaster } from './world.js';
+import { scene, camera, toUI, SUN, realLook } from './world.js';
 import { Item, Stack, items, updateItems, SIZE, bakedGeo } from './items.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { makeChar } from './chars.js';
@@ -118,7 +118,7 @@ function updateCustomers(t, dt) {
       if (t - cu.t0 > 0.95) { cu.state = 'leave'; cu.t0 = t; cu.c.play('walk'); }
     } else if (cu.state === 'leave') {
       const k = (t - cu.t0); cu.c.face(0, Math.min(1, dt * 8)); cu.p[1] += dt * 2.0;
-      if (k > 1.5) { scene.remove(cu.c.obj); for (const it of cu.head.items) it.kill(); front[i] = newCustomer(i, t); continue; }
+      if (k > 1.5) { scene.remove(cu.c.obj); cu.c.obj.traverse((o) => { if (o.isSkinnedMesh) o.skeleton.dispose(); }); for (const it of cu.head.items) it.kill(); front[i] = newCustomer(i, t); continue; }
     }
     const { off } = stepActor(cu.act, t, dt, cu.state === 'wait');
     let ox = 0, oy = 0, oz = 0;
@@ -152,7 +152,7 @@ function buildCrowd(tex) {
     m.compose(p, q, s); crowd.mesh.setMatrixAt(i, m); col.setRGB(0.88 + hash(i * 2.3) * 0.2, 0.88 + hash(i * 4.1) * 0.18, 0.86 + hash(i * 6.7) * 0.2); crowd.mesh.setColorAt(i, col);
     crowd.pos.push(pt); crowd.heads.push([pt[0], 1.42 * k, pt[1]]);
   });
-  scene.add(crowd.mesh); addCaster(crowd.mesh);
+  scene.add(crowd.mesh);
 }
 const CROWD_T = { value: 0 };
 
@@ -177,14 +177,14 @@ function buildSchool(tex) {
 }
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _e = new THREE.Euler();
 function updateSchool(t, dt) {
-  const R = L.pondRect; let n = 0;
+  const R = L.pondRect, sws = swimmers(); let n = 0;
   for (let i = 0; i < school.f.length; i++) {
     const f = school.f[i];
     if (!f.alive) { if (t > f.back) { f.alive = true; f.x = hash(t + i) < 0.5 ? R[0] + 0.2 : R[1] - 0.2; f.z = lerp(R[2], R[3], hash(t * 3 + i)); } else continue; }
     if (t > f.tt) { f.tx = lerp(R[0] + 0.3, R[1] - 0.3, hash(i * 3.7 + Math.floor(t / 3) * 1.9)); f.tz = lerp(R[2] + 0.3, R[3] - 0.2, hash(i * 5.1 + Math.floor(t / 3) * 2.3)); f.tt = t + 2 + hash(i + t) * 2.5; }
     let dx = f.tx - f.x, dz = f.tz - f.z;
     // 躲开游泳的人（网扫过来鱼会跑，但跑不远）
-    for (const sw of swimmers()) { const ax = f.x - sw[0], az = f.z - sw[1], d = Math.hypot(ax, az); if (d < 1.4) { dx += ax / d * 2.2; dz += az / d * 2.2; } }
+    for (const sw of sws) { const ax = f.x - sw[0], az = f.z - sw[1], d = Math.hypot(ax, az); if (d < 1.4) { dx += ax / d * 2.2; dz += az / d * 2.2; } }
     const want = Math.atan2(dx, dz); f.h += wrapA(want - f.h) * Math.min(1, dt * 2.2);
     f.x += Math.sin(f.h) * f.sp * dt; f.z += Math.cos(f.h) * f.sp * dt;
     f.x = Math.min(R[1], Math.max(R[0], f.x)); f.z = Math.min(R[3], Math.max(R[2], f.z));
@@ -307,7 +307,7 @@ function updateHero(t, dt, auto) {
     const tl = tiles[id]; tl.on = false;
     if (!tl.visible || tl.done) continue;
     const on = dist(h.p, tl.c) < 0.8; tl.on = on && h.cash.n > 0;
-    if (on && h.cash.n && t >= (h.nx.pay || 0) && tl.left > 0) {
+    if (on && !G.ended && h.cash.n && t >= (h.nx.pay || 0) && tl.left > 0) {
       const it = h.cash.pop(); tl.left -= T.billVal; h.nx.pay = t + T.payDt;
       it.goto(() => [tl.c[0], 0.08, tl.c[1], 0], 0.32, 1.0, (x) => { x.kill(); });
       play('pay', { vol: 0.5, gap: 0.035 });
@@ -390,7 +390,7 @@ function makeFrame() {
   const W = 1.5, D = 1.25, h = 0.22, th = 0.08;
   for (const [x, z, w, d] of [[0, -D / 2, W, th], [0, D / 2, W, th], [-W / 2, 0, th, D], [W / 2, 0, th, D]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wood); m.position.set(x, h / 2, z); m.castShadow = true; g.add(m); }
   const floor = new THREE.Mesh(new THREE.BoxGeometry(W, 0.04, D), realLook(new THREE.MeshLambertMaterial({ color: 0x6d5238 }))); floor.position.y = 0.02; g.add(floor);
-  g.position.set(L.frame[0], 0, L.frame[1]); scene.add(g); addCaster(g); return g;
+  g.position.set(L.frame[0], 0, L.frame[1]); scene.add(g); return g;
 }
 function makeBelt() {
   const a = L.belt[0], b = L.belt[1], len = b[1] - a[1], g = new THREE.Group();
@@ -402,7 +402,7 @@ function makeBelt() {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, y, 0.06), metal); leg.position.set(0.28, y / 2, a[1] + len * k); g.add(leg);
     const leg2 = leg.clone(); leg2.position.x = -0.28; g.add(leg2);
   }
-  g.position.x = a[0]; g.scale.z = 0.001; scene.add(g); addCaster(g); return g;
+  g.position.x = a[0]; g.scale.z = 0.001; scene.add(g); return g;
 }
 const beltY = (k) => 0.18 + (L.table.top - 0.15) * smooth(Math.min(1, k / 0.8));
 

@@ -189,8 +189,6 @@ export function realLook(mat, { k = 1 } = {}) {
 }
 
 // ------------------------------------------------------------------ 每帧渲染
-const casters = [];
-export const addCaster = (o) => casters.push(o);
 const _c = new THREE.Vector3();
 const depthMat = new THREE.MeshDepthMaterial();
 export function render(focus) {

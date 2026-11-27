@@ -126,7 +126,7 @@ function updateCustomers(t, dt) {
 function poofCustomer(cu, t, k) {
   puff([cu.p[0], 0.9, cu.p[1]], t, 1.3); play('pop', { vol: 0.5, gap: 0.04 });
   if (cu.plate) cu.plate.kill();
-  scene.remove(cu.c.obj);
+  scene.remove(cu.c.obj); cu.c.obj.traverse((o) => { if (o.isSkinnedMesh) o.skeleton.dispose(); });   // 骨骼贴图释放（几何体是共用的，不动）
   G.served++; report(2003);
   for (let j = 0; j < T.billPer; j++) {
     const b = new Item('cash', [cu.p[0], 1.0, cu.p[1]], { pop: true, ry: hash(t * 7 + j) * 6.28 });
@@ -239,8 +239,11 @@ function updateBelts(t, dt) {
 }
 
 // ------------------------------------------------------------------ 走路和碰撞
-const blockList = () => Object.values(L.blocks).concat(G.unlocked.c2 ? [] : [[L.padlock[0] - 0.55, L.padlock[0] + 0.55, L.padlock[1] - 0.25, L.padlock[1] + 0.3]]);
-function walkable(p, m = 0) { if (!inRect(p, L.walk)) return false; for (const b of blockList()) if (inRect(p, b, m)) return false; return true; }
+// 挡路的矩形：随柜台 2 的锁在不在变，缓存起来（walkable 每步要调上千次）
+let BL = null, BLk = -1;
+const blockList = () => { const k = G.unlocked.c2 ? 1 : 0; if (k !== BLk) { BLk = k; BL = Object.values(L.blocks).concat(k ? [] : [[L.padlock[0] - 0.55, L.padlock[0] + 0.55, L.padlock[1] - 0.25, L.padlock[1] + 0.3]]); } return BL; };
+// soft：这几个矩形只按原大小算（起点本来就贴着它们，外扩的边算进去就哪儿都走不了）
+function walkable(p, m = 0, soft = null) { if (!inRect(p, L.walk)) return false; for (const b of blockList()) if (inRect(p, b, soft && soft.includes(b) ? 0 : m)) return false; return true; }
 function moveChar(e, vx, vz, dt) {
   const nx = e.p[0] + vx * dt, nz = e.p[1] + vz * dt;
   if (!walkable(e.p)) { e.p[0] = Math.min(L.walk[1], Math.max(L.walk[0], nx)); e.p[1] = Math.min(L.walk[3], Math.max(L.walk[2], nz)); return; }   // 被新冒出来的东西罩住：让他自己走出来
@@ -248,16 +251,33 @@ function moveChar(e, vx, vz, dt) {
   else if (walkable([nx, e.p[1]])) e.p[0] = nx;
   else if (walkable([e.p[0], nz])) e.p[1] = nz;
 }
-// 直线被挡就绕一个角（挡路的矩形外扩 0.4 米的四个角里挑最短的）
-const segClear = (a, b) => { for (let k = 1; k < 24; k++) { const u = k / 24; if (!walkable([lerp(a[0], b[0], u), lerp(a[1], b[1], u)], 0.25)) return false; } return true; };
+// 绕路：挡路矩形外扩 0.45 米的四个角当路点，在「互相看得见」的角之间找最短路，几个角都能绕
+// （玩家把主角丢在烤炉、箱子、生肉托板后面或木材堆南边，松手以后要能自己走出来；只绕一个角的话会一直顶着墙）
+const CM = 0.45;
+const segClear = (a, b, soft = null) => { for (let k = 1; k < 24; k++) { const u = k / 24; if (!walkable([lerp(a[0], b[0], u), lerp(a[1], b[1], u)], 0.25, soft)) return false; } return true; };
+let CG = null;
+function cornerGraph() {
+  const bl = blockList(); if (CG && CG.bl === bl) return CG;
+  const cs = []; for (const b of bl) for (const c of [[b[0] - CM, b[2] - CM], [b[1] + CM, b[2] - CM], [b[0] - CM, b[3] + CM], [b[1] + CM, b[3] + CM]]) if (walkable(c)) cs.push(c);
+  const adj = cs.map(() => []);
+  for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) if (segClear(cs[i], cs[j])) { const l = dist(cs[i], cs[j]); adj[i].push([j, l]); adj[j].push([i, l]); }
+  return (CG = { bl, cs, adj });
+}
 export function route(from, to) {
-  if (segClear(from, to)) return [to];
-  let best = null, bl = 1e9;
-  for (const b of blockList()) for (const c of [[b[0] - 0.45, b[2] - 0.45], [b[1] + 0.45, b[2] - 0.45], [b[0] - 0.45, b[3] + 0.45], [b[1] + 0.45, b[3] + 0.45]]) {
-    if (!walkable(c)) continue; const l = dist(from, c) + dist(c, to);
-    if (l < bl && segClear(from, c) && segClear(c, to)) { bl = l; best = c; }
+  const soft = blockList().filter((b) => inRect(from, b, 0.26));
+  if (segClear(from, to, soft)) return [to];
+  const { cs, adj } = cornerGraph(), n = cs.length, d = new Array(n).fill(Infinity), prev = new Array(n).fill(-1), done = new Array(n).fill(false);
+  for (let i = 0; i < n; i++) if (segClear(from, cs[i], soft)) d[i] = dist(from, cs[i]);
+  let best = Infinity, bi = -1;
+  for (;;) {
+    let u = -1; for (let i = 0; i < n; i++) if (!done[i] && d[i] < best && (u < 0 || d[i] < d[u])) u = i;
+    if (u < 0) break; done[u] = true;
+    const l = d[u] + dist(cs[u], to); if (l < best && segClear(cs[u], to)) { best = l; bi = u; }
+    for (const [v, w] of adj[u]) if (d[u] + w < d[v]) { d[v] = d[u] + w; prev[v] = u; }
   }
-  return best ? [best, to] : [to];
+  if (bi < 0) return [to];
+  const path = [to]; for (let u = bi; u >= 0; u = prev[u]) path.unshift(cs[u]);
+  return path;
 }
 function steer(e, tgt, speed, dt, r = 0.12) {
   if (!e.path || e.pathT < G.t || dist(e.pathTo || [1e9, 0], tgt) > 0.05) { e.path = route(e.p, tgt); e.pathT = G.t + 0.4; e.pathTo = [...tgt]; }
@@ -323,7 +343,7 @@ function updateHero(t, dt, auto) {
     const tl = tiles[id]; tl.on = false;
     if (!tl.visible || tl.done) continue;
     const on = dist(h.p, tl.c) < 0.78; tl.on = on && h.cash.n > 0;
-    if (on && h.cash.n && t >= (h.nx.pay || 0) && tl.left > 0) {
+    if (on && !G.ended && h.cash.n && t >= (h.nx.pay || 0) && tl.left > 0) {
       const it = h.cash.pop(); tl.left -= 1; h.nx.pay = t + T.payDt;
       it.goto(() => [tl.c[0], 0.08, tl.c[1], 0], 0.3, 1.0, (x) => { x.kill(); });
       play('pay', { vol: 0.45, gap: 0.035 });
@@ -383,7 +403,7 @@ export function chooseTarget() {
   if (tl && money >= tl.left) return { kind: 'tile', p: tl.c, r: 0.15 };
   const kind = h.goods.n ? h.goods.items[0].type : null;
   const serveCi = () => (G.unlocked.c2 && !G.unlocked.right && waitingCount(1) >= waitingCount(0) ? 1 : 0);
-  if (kind === 'log') return pile.n && dist(h.p, L.padA.c) < 1.0 ? { kind: 'padA', p: L.padA.c, r: 0.2 } : { kind: 'feed', p: L.feed, r: 0.2 };   // 木材堆拿空了再去添柴
+  if (kind === 'log') return !G.unlocked.wood && pile.n && dist(h.p, L.padA.c) < 1.0 ? { kind: 'padA', p: L.padA.c, r: 0.2 } : { kind: 'feed', p: L.feed, r: 0.2 };   // 木材堆拿空了再去添柴（有了送柴带就拿不了，直接去添）
   const cookingSoon = oven.busy || oven.fuel >= T.logsPerBatch || (G.unlocked.wood && (pile.n || belts.wood.ride.length));
   if (kind === 'cooked') {
     for (let ci = 0; ci < 2; ci++) if ((ci === 0 || G.unlocked.c2) && dist(h.p, L.serve[ci]) < 1.1) return { kind: 'serve', p: L.serve[ci], r: 0.25 };   // 到了柜台就放完再走

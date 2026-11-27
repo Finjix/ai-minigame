@@ -1,7 +1,7 @@
 // 物品：生鱼、盒装鱼肉（原工程的寿司盒，片里的「肉盒」）、钞票捆。全部实例化画，每帧按逻辑位置重排矩阵。
 // 每个物品挂在一个「槽」上（栈的第几层、顾客头顶……），换槽时沿抛物线飞过去，到了以后贴着槽走。
 import * as THREE from 'three';
-import { scene, realLook, addCaster } from './world.js';
+import { scene, realLook } from './world.js';
 import { arc, clamp01, lerp, smooth } from '../../../shared/playable/util.js';
 
 export const SIZE = { fish: { thick: 0.274 * 0.92, len: 1.05 }, pack: { h: 0.25 }, cash: { h: 0.0886 } };
@@ -11,7 +11,6 @@ class Pool {
     this.n = 0; this.max = max;
     this.meshes = parts.map(([g, m]) => { const im = new THREE.InstancedMesh(g, m, max); im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.frustumCulled = false; im.castShadow = cast; im.count = 0; scene.add(im); return im; });
     for (let i = 1; i < this.meshes.length; i++) this.meshes[i].instanceMatrix = this.meshes[0].instanceMatrix;
-    if (cast) addCaster(this.meshes[0]);
   }
   push(m) { if (this.n < this.max) this.meshes[0].setMatrixAt(this.n++, m); }
   flush() { for (const m of this.meshes) m.count = this.n; this.meshes[0].instanceMatrix.needsUpdate = true; this.n = 0; }

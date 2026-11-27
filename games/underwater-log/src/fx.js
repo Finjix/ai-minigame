@@ -189,10 +189,10 @@ const puffT = canvasTex(128, 128, (g) => { for (let i = 0; i < 7; i++) { const x
 const splashT = canvasTex(128, 128, (g) => { g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 9; g.beginPath(); g.arc(64, 64, 52, 0, 7); g.stroke(); g.lineWidth = 4; g.beginPath(); g.arc(64, 64, 38, 0, 7); g.stroke(); });
 const pillarT = canvasTex(64, 256, (g) => { const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.6, 'rgba(255,250,220,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0.95)'); g.fillStyle = gr; const h = g.createLinearGradient(0, 0, 64, 0); g.fillRect(0, 0, 64, 256); g.globalCompositeOperation = 'destination-in'; h.addColorStop(0, 'rgba(0,0,0,0)'); h.addColorStop(0.5, 'rgba(0,0,0,1)'); h.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = h; g.fillRect(0, 0, 64, 256); });
 const fxList = [];
-const bbGeo = new THREE.PlaneGeometry(1, 1);
+const bbGeo = new THREE.PlaneGeometry(1, 1), flatGeo = flat(1, 1);   // 共用，特效结束只释放材质
 function addFx(kind, p, t, o = {}) {
   const tex = kind === 'glow' ? glowT : kind === 'puff' ? puffT : kind === 'pillar' ? pillarT : splashT;
-  const m = new THREE.Mesh(kind === 'splash' ? flat(1, 1) : bbGeo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: kind !== 'glow', blending: kind === 'puff' ? THREE.NormalBlending : THREE.AdditiveBlending, color: o.col !== undefined ? o.col : 0xffffff }));
+  const m = new THREE.Mesh(kind === 'splash' ? flatGeo : bbGeo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: kind !== 'glow', blending: kind === 'puff' ? THREE.NormalBlending : THREE.AdditiveBlending, color: o.col !== undefined ? o.col : 0xffffff }));
   m.renderOrder = 8; m.position.set(p[0], p[1], p[2]); scene.add(m);
   fxList.push({ m, kind, t0: t, dur: o.dur || (kind === 'puff' ? 0.55 : kind === 'pillar' ? 0.9 : 0.6), size: o.size || 1, p: [...p] });
 }

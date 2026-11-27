@@ -3,3 +3,4 @@
 node_modules/
 build/
 _ref/
+project.private.config.json

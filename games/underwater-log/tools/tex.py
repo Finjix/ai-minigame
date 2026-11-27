@@ -1,7 +1,7 @@
 """贴图后处理：build/underwater-log/bake → games/underwater-log/minigame/assets
 用法（仓库根目录）：python -I games/underwater-log/tools/tex.py [只做哪几张（文件名前缀）…]
 - UV 空间烘的写实固有色 PNG：同一份 UV 上不重叠的几个材质槽合成一张，覆盖区往外扩边（接缝不露底色），缩放，JPEG。
-- 传送带：源工程 GLB 里嵌的履带贴图抠出来，照 real_mat57 的 belt 参数去饱和、压暗。
+- 传送带不用贴图文件：游戏里照成片画（src/props.js 的 beltTexture）。
 - 环境：color.png（fixenv.py 修过的）→ JPEG；depth.png → PNG（16 位视深按 4 量化，压得小）。
 """
 import sys, os, io, json, struct
@@ -91,12 +91,6 @@ if want('giant'):
     albedo(['props/giant_0.png'], 'tex/giant_core.jpg', 256)
     bark = Image.open(os.path.join(SRC, 'assets/xs/bark.jpg')).convert('RGB').resize((512, 512), Image.LANCZOS)
     save(bark, 'tex/bark.jpg', 80)
-if want('belt'):
-    for f, n in (('belt.glb', 'belt'), ('belt_curve.glb', 'belt_curve')):
-        im = np.asarray(glb_image(os.path.join(SRC, 'assets/models/c2', f))).astype(np.float32) / 255
-        l = im @ np.array([0.2126, 0.7152, 0.0722])
-        im = (l[..., None] + (im - l[..., None]) * 0.28) * 0.62   # real_mat57 belt：去饱和 0.72、亮度 0.52（这里留一点，游戏里还要过光照）
-        save(Image.fromarray(np.clip(im * 255, 0, 255).astype(np.uint8)).resize((256, 256), Image.LANCZOS), f'tex/{n}.jpg', 80)
 if want('env'):
     e = os.path.join(BAKE, 'env')
     col = Image.open(os.path.join(e, 'color_fix.png' if os.path.exists(os.path.join(e, 'color_fix.png')) else 'color.png')).convert('RGB')

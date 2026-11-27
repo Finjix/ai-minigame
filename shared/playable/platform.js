@@ -117,28 +117,31 @@ export function reportTime(t) {
     report(3000 + s);
   }
 }
+// 「跳转」：微信里是 wx.notifyMiniProgramPlayableStatus({ isEnd: true })——平台收到就接管（试玩画面没了，出平台自己的落地页），
+// 渠道里是 super_html.download()。所以结束页出来时只通知渠道 game_end，不跳转；跳转只在玩家点「立即体验」（download）
+// 或结束页出来 T.endJump 秒（autoJump）时发生，结束页才能完整显示 5 秒。
+const SH = () => (typeof window !== 'undefined' && window.super_html) || null;
+const wxEnd = () => { try { if (isWx && wx.notifyMiniProgramPlayableStatus) wx.notifyMiniProgramPlayableStatus({ isEnd: true }); } catch (e) {} };
 let endSent = false;
+// 结束页出来：渠道里 super_html.game_end()（只通知，不跳转）；微信里什么都不发（isEnd 等于跳转）
 export function gameEnd() {
   if (endSent) return; endSent = true;
   console.log('game end');
-  try { if (typeof window !== 'undefined' && window.super_html && window.super_html.game_end) window.super_html.game_end(); } catch (e) {}
-  try { if (isWx && wx.notifyMiniProgramPlayableStatus) wx.notifyMiniProgramPlayableStatus({ isEnd: true }); } catch (e) {}
+  try { const s = SH(); if (s && s.game_end) s.game_end(); } catch (e) {}
 }
-// 微信里不显示「立即体验」按钮（平台自己出结束页）
-export const hideDownload = () => isWx || !!(typeof window !== 'undefined' && window.super_html && window.super_html.is_hide_download);
-export function download(fromEnd = false) {
+// 玩家点「立即体验」：报 1012（每次都报），然后跳转
+export function download() {
   console.log('# playable_controller download: ' + ((typeof window !== 'undefined' && window.super_html_channel) || 'common') + ' #');
-  if (!fromEnd) report(1012, 1, false);
-  if (isWx) { gameEnd(); return; }
-  try { if (window.super_html && window.super_html.download) window.super_html.download(); } catch (e) {}
-  if (fromEnd) gameEnd();
+  report(1012, 1, false);
+  if (isWx) { wxEnd(); return; }
+  try { const s = SH(); if (s && s.download) s.download(); } catch (e) {}
 }
-// 结束页出来 T.endJump 秒（5）不管点没点过「立即体验」都强制跳转一次；不算玩家点击，不报 1012
+// 强制跳转一次：结束页出来 T.endJump 秒（5），不管点没点过「立即体验」；加载失败时也用它把试玩交还给平台。不算玩家点击，不报 1012
 let jumped = false;
 export function autoJump() {
   if (jumped) return; jumped = true;
   console.log('# playable_controller download: auto #');
-  if (isWx) { try { wx.notifyMiniProgramPlayableStatus && wx.notifyMiniProgramPlayableStatus({ isEnd: true }); } catch (e) {} return; }
-  try { if (window.super_html && window.super_html.download) window.super_html.download(); } catch (e) {}
+  if (isWx) { wxEnd(); return; }
+  try { const s = SH(); if (s && s.download) s.download(); } catch (e) {}
   gameEnd();
 }

@@ -25,6 +25,8 @@
 | `tools/wxide.mjs` | 微信开发者工具命令行的包装（参数不经过 cmd.exe）：`node tools/wxide.mjs simulator_screenshot --project <绝对路径>` |
 | `tools/html.mjs` | 单文件 HTML：`node tools/html.mjs <名字> [输出.html]`，把 `minigame/` 的 js 和资源（base64）塞进一个文件，双击就能在浏览器里玩；电脑宽屏时居中显示成 9:16 竖框。先正常打包（不要 `--dbg`） |
 | `tools/serve.mjs` | 共用本地服务：`/games/<名字>/…` 浏览器里跑游戏；烘焙页和 `/_save` 用环境变量 `BAKE_GAME`、`TW_ROOT` 指定游戏和源工程 |
+| `tools/flowcheck.mjs` | 试玩流程回归（无头 Edge）：`node tools/flowcheck.mjs <名字> [--hold \| --hold=20] [--shots=<目录>]`，跑一局打印解锁时间，检查自动玩、中间页、结束、跳转、时长打点；端口不是 8770 时用 `PORT` 指定 |
+| `tools/shot.mjs` | 无头截图：等到页面里某个状态定格截画布，`--eval` 时打印一段 JS 的结果（量尺寸、数穿模） |
 | `build/<名字>/` | 烘焙中间产物（不进仓库） |
 | `docs/` | 制作流程和经验库，每个任务结束都要更新 |
 

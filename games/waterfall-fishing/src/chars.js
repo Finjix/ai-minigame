@@ -1,7 +1,7 @@
 // 人物：原工程的巴斯特（主角、渔工换米棕衣服）、厨师、顾客。GLB 里是骨骼动画，材质按名字换成 Lambert + 烘好的写实颜色贴图
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { realLook, addCaster } from './world.js';
+import { realLook } from './world.js';
 
 const CM = 0.008585105326680513;   // 原工程 UE 厘米 → 米（主角绑定姿势高 1.85m）
 export function proto(g, minY) { return { scene: g.scene, clips: Object.fromEntries(g.animations.map((c) => [c.name, c])), minY }; }
@@ -50,7 +50,6 @@ export function makeChar(P, texMap, { scale = 1, cast = true, tint = null } = {}
     update(dt) { mixer.update(dt); },
     face(h, k = 1) { const d = Math.atan2(Math.sin(h - c.heading), Math.cos(h - c.heading)); c.heading += d * k; obj.rotation.y = c.heading; },
   };
-  if (cast) addCaster(obj);
   return c;
 }
 const _a = new THREE.Vector3(), _b = new THREE.Vector3();

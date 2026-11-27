@@ -1,11 +1,12 @@
 // 中间跳转页：游戏时间满 at 秒（60）暂停游戏，弹出「立即体验」页（压暗 + 大 logo + 大按钮，和结束页同一套），
 // 按钮下面一行「N 秒后继续游戏」（不要进度条），倒计时 dur 秒（5，真实时间）。
 // 点大按钮 = 玩家点「立即体验」（download，报 1012）；倒计时完没点就回到游戏，接着原来的状态玩。
-// 只弹一次；到点时结束页已经出来了就不弹。点按钮以外的地方不做事（防误触）。
+// 只弹一次；到点时已经通关（结束页出来了，或者最后一个地块已经买了、几秒后就进结束页）就不弹，免得两个「立即体验」页挨着出。点按钮以外的地方不做事（防误触）。
 // 打点：弹出 3200，倒计时完回到游戏 3201。
 // 用法（main.js）：
 //   const MID = createMid({ W, H, at: T.mid, dur: T.midDur });
-//   主循环追帧：MID.on 时游戏时间不走；每一步 updateFlow 之后 if (MID.check(gameT, rt, flow.ended)) { 松开摇杆; break; }，循环外 MID.update(rt)
+//   主循环追帧：MID.on 时游戏时间不走；每一步 updateFlow 之后 if (MID.check(gameT, rt, flow.ended || GM.G.endAt < Infinity)) { releaseJoy(); break; }，循环外 MID.update(rt)
+//   releaseJoy：正在按的摇杆松开、按停手算（2.5 秒后自动玩）；本来就在自动玩的不动 lastTouch，回来接着自动玩
 //   touchStart 里最先 if (MID.touch(x, y)) return;   界面最后画 MID.draw(rt)
 import * as UI from './ui.js';
 import { report, download } from './platform.js';
@@ -25,7 +26,7 @@ export function createMid({ W, H, at = 60, dur = 5 }) {
   // 弹着的时候吞掉所有触摸；点中大按钮就跳转
   m.touch = (x, y, rt) => {
     if (!m.on) return false;
-    if (Math.abs(x - btn.x) <= btn.w / 2 + 10 && Math.abs(y - btn.y) <= btn.h / 2 + 10) { download(false); close('click', rt); }
+    if (rt - m.t0 > 0.4 && Math.abs(x - btn.x) <= btn.w / 2 + 10 && Math.abs(y - btn.y) <= btn.h / 2 + 10) { download(); close('click', rt); }   // 按钮弹出来以前（0.4 秒内）点到的不算
     return true;
   };
   m.draw = (rt) => {

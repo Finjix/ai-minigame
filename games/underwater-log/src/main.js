@@ -55,7 +55,7 @@ async function boot() {
     T_('meatRaw', 'assets/tex/meat_raw.jpg'), T_('meatCooked', 'assets/tex/meat_cooked.jpg'), T_('cash', 'assets/tex/cash.jpg'), T_('log', 'assets/tex/log.jpg'),
     T_('grinder1', 'assets/tex/grinder1.jpg'), T_('grinder2', 'assets/tex/grinder2.jpg'), T_('stump2Top', 'assets/tex/stump2_top.jpg'), T_('stump2Bark', 'assets/tex/stump2_bark.jpg'),
     T_('stump3Top', 'assets/tex/stump3_top.jpg'), T_('stump3Bark', 'assets/tex/stump3_bark.jpg'), T_('giantCap', 'assets/tex/giant_cap.jpg', { repeat: false }), T_('giantCore', 'assets/tex/giant_core.jpg'),
-    T_('bark', 'assets/tex/bark.jpg'), T_('belt', 'assets/tex/belt.jpg'),
+    T_('bark', 'assets/tex/bark.jpg'),
     M_('hero', 'assets/models/hero.glb'), M_('cust', 'assets/models/cust.glb'), M_('crowd', 'assets/models/crowd.glb'), M_('grinder1', 'assets/models/grinder1.glb'), M_('grinder2', 'assets/models/grinder2.glb'),
     M_('meatRaw', 'assets/models/meat_raw.glb'), M_('meatCooked', 'assets/models/meat_cooked.glb'), M_('cash', 'assets/models/cash.glb'), M_('log', 'assets/models/log.glb'),
     M_('counter', 'assets/models/counter.glb'), M_('stump2', 'assets/models/stump2.glb'), M_('stump3', 'assets/models/stump3.glb'),
@@ -75,7 +75,7 @@ async function boot() {
   GM.build(P, tex);
   addStatic();
   onTouch(touchStart, touchMove, touchEnd);
-  onShowHide(() => { last = now(); }, () => {});
+  onShowHide(() => { last = now(); }, () => { if (joy.id !== null) releaseJoy(); });   // 切后台当作松手（手指的松开事件可能收不到）
   focus = GM.heroFocus(); updateCamera(0, true);
   try { world.renderer.compile(scene, camera); } catch (e) {}
   ready = true; readyT = -1; progress = 1;
@@ -88,8 +88,8 @@ function touchStart(p) {
   const [x, y] = toL(p);
   if (!ready) { if (failed) download(); return; }
   if (MID.touch(x, y, (now() - t0) / 1000)) return;   // 中间跳转页弹着：只认大按钮
-  if (flow.ended) { download(false); return; }
-  if (hitTop(x, y)) { download(false); return; }
+  if (flow.ended) { if (gameT - flow.endT > 0.5) download(); return; }   // 结束页刚出来 0.5 秒内的点击是误触（手还在划），不算
+  if (hitTop(x, y)) { download(); return; }
   if (joy.id === null) { joy.id = p.id; joy.ox = x; joy.oy = y; joy.dx = joy.dy = 0; flow.touching = true; firstTouch(); }
 }
 function touchMove(p) {
@@ -99,7 +99,7 @@ function touchMove(p) {
   joy.dx = o; joy.dy = c;
 }
 function touchEnd(p) { if (p.id !== joy.id) return; joy.id = null; joy.dx = joy.dy = 0; flow.touching = false; flow.lastTouch = gameT; }
-function releaseJoy() { joy.id = null; joy.dx = joy.dy = 0; flow.touching = false; flow.joy = null; flow.lastTouch = gameT; }
+function releaseJoy() { if (flow.touching) flow.lastTouch = gameT; joy.id = null; joy.dx = joy.dy = 0; flow.touching = false; flow.joy = null; }   // 中间页弹出：正在按的摇杆松开、按停手算；本来在自动玩的回来接着自动玩
 function firstTouch() { if (flow.firstTouch === Infinity) { flow.firstTouch = gameT; report(1004); report(2001); } }
 const hitTop = (x, y) => x >= hi.x - 10 && x <= hi.x + hi.w + 10 && y >= hi.y - 10 && y <= hi.y + hi.h + 10;
 
@@ -127,7 +127,7 @@ function endGame(t) {
   console.log('[flow] end t=' + t.toFixed(1) + ' served=' + GM.G.served + ' fps~' + (frames / Math.max(1, t)).toFixed(0));
   flow.ended = true; flow.endT = t; GM.G.ended = true; joy.id = null; joy.dx = joy.dy = 0; flow.touching = false; flow.joy = null;
   report(1011); report(1013); endMusic();
-  setTimeout(() => download(true), 200);
+  gameEnd();   // 只通知渠道试玩结束，不跳转：跳转在结束页出来 5 秒（autoJump）或玩家点「立即体验」时
 }
 
 // ------------------------------------------------------------------ 镜头：跟主角（成片：跟着走、停就停）
@@ -236,7 +236,7 @@ const errs = [];
 if (isWx && wx.onError) wx.onError((e) => { errs.push(String(e && (e.message || e)).slice(0, 300)); });
 let dbgMesh = null, dbgCv = null, dbgT = -1, fpsAvg = 0;
 function drawDebug(rt) {
-  if (!(DEV0 || errs.length) || !ready) return;
+  if (!(DEV0 || (errs.length && si.platform === 'devtools')) || !ready) return;   // 报错浮层只在开发者工具里显示，真机上不给玩家看
   if (!dbgMesh) {
     dbgCv = createCanvas(512, 256); const tx = new THREE.Texture(dbgCv); tx.colorSpace = THREE.SRGBColorSpace;
     dbgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthTest: false, depthWrite: false }));
@@ -273,10 +273,10 @@ function frame() {
     let acc = DBG.paused || MID.on ? 0 : Math.min(0.5, (n - last0) / 1000) * SPEED; last0 = n;
     try {
       while (acc > 1e-4) {
-        const st = Math.min(acc, 1 / 30); acc -= st;
+        let st = Math.min(acc, 1 / 30); if (acc - st < 1 / 120) st = acc; acc -= st;   // 剩下不到 1/120 秒的零头并进这一步，别为它多跑一整遍更新
         gameT += st; U.uTime.value = gameT;
         updateFlow(gameT);
-        if (MID.check(gameT, rt, flow.ended)) { releaseJoy(); break; }   // 满 60 秒：暂停，弹中间跳转页
+        if (MID.check(gameT, rt, flow.ended || GM.G.endAt < Infinity)) { releaseJoy(); break; }   // 满 60 秒：暂停，弹中间跳转页（最后一个地块已经买了、马上进结束页的不弹）
         GM.update(gameT, st, flow.auto && !flow.ended);
         updateCamera(st);
       }
@@ -294,6 +294,6 @@ function frame() {
   drawDebug(rt);
   if (!isWx && window.__cap) { const f = window.__cap; window.__cap = null; f(world.canvas.toDataURL('image/jpeg', 0.82)); }
 }
-function fail(e) { failed = true; console.error('playable fail:', e); if (isWx) gameEnd(); }
+function fail(e) { failed = true; console.error('playable fail:', e); if (isWx) autoJump(); }   // 加载失败：微信里交还给平台
 const DBG = (isWx ? GameGlobal : window).__dbg = { UI, GM, world, flow, T, mid: () => MID, LD, fixSkinWeights, paused: false, look: null, st: () => ({ coverA, readyT, ready, progress, shown, gameT, frames }) };
 boot().catch((e) => { console.error(e); fail(e); });

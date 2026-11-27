@@ -4,7 +4,7 @@
 //   新圆木上每个点 = 参考圆木上相同相对位置的点，投到烘焙相机里取色。圆木晃的时候颜色跟着木头走
 import * as THREE from 'three';
 import { L } from './config.js';
-import { scene, addCaster, BAKE_VP, U, envMat, GRADE_GLSL } from './world.js';
+import { scene, BAKE_VP, U, envMat, GRADE_GLSL } from './world.js';
 import { makeChar } from './chars.js';
 import { actor, stepActor } from './custactions.js';
 import { hash } from '../../../shared/playable/util.js';
@@ -44,7 +44,7 @@ export function buildFence(protos, emoList) {
       const m = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: FS,
         uniforms: { tCol: envMat.uniforms.tCol, uVP: { value: BAKE_VP }, uRef: { value: new THREE.Vector3(...REF[k % REF.length]) }, uGlow: { value: 0 }, uRes: U.uRes, uVig: U.uVig, uGr: U.uGr } });
       const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, -0.01, FZ); mesh.castShadow = true; mesh.frustumCulled = false;
-      scene.add(mesh); addCaster(mesh);
+      scene.add(mesh);
       logs.push({ mesh, x, d: 0, v: 0, I: 0 });
     }
   });
