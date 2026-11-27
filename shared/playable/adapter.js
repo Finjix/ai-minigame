@@ -6,9 +6,13 @@ const G = typeof GameGlobal !== 'undefined' ? GameGlobal : null;
 if (G) {
   if (typeof G.self === 'undefined') G.self = G;
   if (typeof G.navigator === 'undefined') G.navigator = { userAgent: 'wechatgame', maxTouchPoints: 5 };
-  if (typeof G.performance === 'undefined' || !G.performance.now) {
-    const p = typeof wx !== 'undefined' && wx.getPerformance ? wx.getPerformance() : null;
-    G.performance = { now: p ? () => p.now() / 1000 : () => Date.now() };   // wx.getPerformance().now() 是微秒
+  if (typeof G.performance === 'undefined' || typeof G.performance.now !== 'function') {
+    // 试玩广告的运行环境（magicbrush）里 wx.getPerformance() 返回的对象没有 now：每一层都要判断，判断不过就用 Date.now
+    let p = null;
+    try { p = typeof wx !== 'undefined' && typeof wx.getPerformance === 'function' ? wx.getPerformance() : null; } catch (e) {}
+    let ok = false;
+    try { ok = !!p && typeof p.now === 'function' && Number.isFinite(p.now()); } catch (e) {}
+    G.performance = { now: ok ? () => p.now() / 1000 : () => Date.now() };   // wx.getPerformance().now() 是微秒
   }
   if (typeof G.AbortController === 'undefined') {   // GLTFLoader 解析时会 new 一个（只用来取消加载）
     class AbortSignal { constructor() { this.aborted = false; this.reason = undefined; this.onabort = null; this._l = []; } addEventListener(t, f) { this._l.push(f); } removeEventListener(t, f) { this._l = this._l.filter((x) => x !== f); } throwIfAborted() { if (this.aborted) throw this.reason; } }

@@ -117,7 +117,8 @@ games/<名字>/
    结束页要能显示满 5 秒：结束后 2 秒截一张应该还是结束页，5 秒以后平台接管（模拟器黑屏）。
    量时间（例如停手多久恢复自动玩）别靠连拍截图：一次 `simulator_screenshot` 要 1.5 秒左右，图也只有 149×321。临时加一行 `console.log`，打包刷新，用 `automation_game_action --action swipe` 滑一下，再 `get_simulator_console --command "grep <关键字>"` 读出来（一次只 grep 一个关键字，`a\|b` 这种写法什么都返回不了），量完撤掉日志重新打包。`[flow] auto`、`[flow] time`、`[flow] unlock`、`[flow] end` 是常驻日志，不用撤。
 4. 包大小：`minigame/` 去掉 `index.html` 要小于 4 MB（4194304 字节）。超了先看 `tools/glbsize.mjs` 哪个属性占地方（切线、第二套 UV、没用到的动画片段最常见），再看底图取景范围外的部分。
-5. 在报告里写清楚**没有验证的部分**（真机、声音有没有用耳朵听过）。
+5. 试玩环境：手机上的试玩跑在 magicbrush 里，`wx` 是另一套，只保证官方列表里的接口（[tryplay-upload.md](tryplay-upload.md)「坑」第一条），别的接口可能返回空对象（`getPerformance()` 没有 `now`、`getWindowInfo()` 没有宽高）。`wx` 调用一律走 `platform.js` 的 `wxGet`，返回值都判断；包里的 JSON 一律 UTF-8（GBK 的 `audio.json` 在 iOS 试玩环境里读不出来、也不报错，`tools/build.mjs` 会查）。上传以后用 `node tools/tryplay.mjs qr` 拿体验码，iOS 和安卓都扫一次、听一下有没有声音，开发者工具模拟器测不出来。
+6. 在报告里写清楚**没有验证的部分**（真机、声音有没有用耳朵听过）。
 
 ## 第 7 步：交付
 
@@ -125,3 +126,4 @@ games/<名字>/
 - 按 [AGENTS.md](../AGENTS.md) 的迭代规则，更新本文和 [lessons.md](lessons.md)。
 - 用户要单独的网页版时：`node tools/html.mjs <名字> <输出.html>` 打成一个能双击打开的 HTML（资源内嵌，不用起服务），用无头 Edge 按 `file://` 打开截图确认。这台机器的桌面是 `D:\`（注册表 User Shell Folders 改过），写桌面先查 `[Environment]::GetFolderPath('Desktop')`。
 - 用户要求提交时才提交，提交在功能分支上。
+- **上传试玩开发版本**（用户要求时）：照 [tryplay-upload.md](tryplay-upload.md) 做。服务商平台建试玩 AppID（`node tools/tryplay.mjs create`，每个游戏一次），开发者工具 `upload`，再用 `node tools/tryplay.mjs versions` 核对。

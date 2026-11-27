@@ -28,6 +28,7 @@
 | `tools/flowcheck.mjs` | 试玩流程回归（无头 Edge）：`node tools/flowcheck.mjs <名字> [--hold \| --hold=20] [--shots=<目录>]`，跑一局打印解锁时间，检查自动玩、中间页、结束、跳转、时长打点；端口不是 8770 时用 `PORT` 指定 |
 | `tools/shot.mjs` | 无头截图：等到页面里某个状态定格截画布，`--eval` 时打印一段 JS 的结果（量尺寸、数穿模） |
 | `build/<名字>/` | 烘焙中间产物（不进仓库） |
+| `tools/tryplay.mjs` | 服务商平台试玩广告（无头 Edge）：`login` 取登录二维码、`create <名称>` 建试玩 AppID、`list`、`versions <AppID…>` 查开发版本、`qr <AppID…>` 取体验二维码。完整的上传流程见 [docs/tryplay-upload.md](docs/tryplay-upload.md) |
 | `docs/` | 制作流程和经验库，每个任务结束都要更新 |
 
 新加一个游戏：建 `games/<名字>/src/main.js` 和 `games/<名字>/minigame/`（`game.js`、`game.json`、`project.config.json`），`node tools/build.mjs <名字>` 即可。完整步骤见 [docs/video-to-minigame.md](docs/video-to-minigame.md)。

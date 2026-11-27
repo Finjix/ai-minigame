@@ -48,4 +48,4 @@ node tools/build.mjs underwater-log
    `PORT=8771 node games/underwater-log/tools/bake/run.mjs games/underwater-log/tools/bake/steps/env.js`（底图 + 深度 + meta），
    `…/steps/cov.js`（覆盖度图），`…/steps/props.js` 和 `…/steps/props_logs.js`（会动的东西的贴图）。`steps/list.js` 列出分类结果。
 3. `python -I games/underwater-log/tools/fixenv.py`（取景范围 + 补没拍到的地方）→ `python -I games/underwater-log/tools/tex.py`（贴图、底图）→ `node games/underwater-log/tools/assets.mjs`（模型）。
-4. 声音：`sfx.mp3`、`endcard.mp3` 是共用的音效合集和结束音（和瀑布捞鱼同一份）；`bgm.mp3` 是源工程 V20 配乐 A 的前 26 秒（ffmpeg 转单声道 40 kbps）。
+4. 声音：`sfx.mp3`、`endcard.mp3` 是共用的音效合集和结束音（和瀑布捞鱼同一份）；`bgm.mp3` 是源工程 V20 配乐 A 的前 26 秒，最后 1 秒淡出：`ffmpeg -i A_轻快俏皮_配V20画面.wav -t 26 -af "afade=t=out:st=25:d=1" -ac 1 -ar 44100 -b:a 56k bgm.mp3`。`audio.json` 要存成 UTF-8（之前是 GBK，iOS 试玩环境读不出来，整个没声音）。

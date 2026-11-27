@@ -16,4 +16,20 @@ for (const n of names) {
     define: { 'process.env.NODE_ENV': '"production"', FORCE_DBG: dbg ? 'true' : 'false' }, logLevel: 'warning', metafile: true,
   });
   console.log(n, 'bundle', (r.metafile.outputs[out].bytes / 1024).toFixed(0), 'KB');
+  checkJson(path.join(G, 'minigame'));
+}
+
+// 包里的 JSON 必须是合法 UTF-8：水下巨木的 audio.json 里有一句 GBK 中文，iOS 试玩环境按 utf8 读它两个回调都不来，
+// 加载卡在 96%（1.0.2），放行后又整个没声音（1.0.3）。安卓和浏览器都不报错，所以在打包时查
+function checkJson(dir) {
+  const bad = [];
+  const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const p = path.join(d, e.name);
+    if (e.isDirectory()) { if (e.name !== 'dev') walk(p); continue; }
+    if (!e.name.endsWith('.json')) continue;
+    const b = fs.readFileSync(p);
+    try { JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(b)); } catch (err) { bad.push(p + '：' + err.message); }
+  } };
+  walk(dir);
+  if (bad.length) { console.error('JSON 不是合法 UTF-8 / 解析不了（改成 UTF-8 再打包）：\n  ' + bad.join('\n  ')); process.exit(1); }
 }

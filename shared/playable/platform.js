@@ -9,17 +9,29 @@ const b64buf = (b) => { const s = atob(b), u = new Uint8Array(s.length); for (le
 const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
 
 export const query = (() => {
-  if (isWx) { try { const o = wx.getLaunchOptionsSync && wx.getLaunchOptionsSync(); return (o && o.query) || {}; } catch (e) { return {}; } }
+  if (isWx) { try { const o = typeof wx.getLaunchOptionsSync === 'function' && wx.getLaunchOptionsSync(); return (o && o.query) || {}; } catch (e) { return {}; } }
   const q = {}; new URLSearchParams(location.search).forEach((v, k) => { q[k] = v; }); return q;
 })();
 
+// 试玩广告的运行环境里 wx 是另一套（只保证 createCanvas、createImage、loadFont、触摸、getFileSystemManager、getSystemInfoSync、getAccountInfoSync、
+// 音频、setEnableDebug、notifyMiniProgramPlayableStatus、reportGameEvent 这些，见 docs/tryplay-upload.md）。别的接口可能在、但返回空对象，
+// 所以调用都走 wxGet（不在 / 报错返回 null），用到的数字都要判断。
+export const wxGet = (name, ...a) => { try { return isWx && typeof wx[name] === 'function' ? wx[name](...a) || null : null; } catch (e) { return null; } };
+const pos = (...v) => v.find((x) => typeof x === 'number' && Number.isFinite(x) && x > 0);
+let _si = null;
 export function sysInfo() {
+  if (_si) return _si;
   if (isWx) {
-    const w = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
-    let dev = {}; try { dev = wx.getDeviceInfo ? wx.getDeviceInfo() : wx.getSystemInfoSync(); } catch (e) {}
-    let menu = null; try { menu = wx.getMenuButtonBoundingClientRect && wx.getMenuButtonBoundingClientRect(); } catch (e) {}
-    const safeTop = (w.safeArea && w.safeArea.top) || w.statusBarHeight || 0;
-    return { w: w.windowWidth, h: w.windowHeight, dpr: w.pixelRatio || 2, platform: dev.platform || 'unknown', model: dev.model || '', menu, safeTop };
+    const a = wxGet('getWindowInfo') || {}, b = wxGet('getSystemInfoSync') || {}, d = wxGet('getDeviceInfo') || {};
+    const c = GameGlobal.__mainCanvas;
+    const dpr = pos(a.pixelRatio, b.pixelRatio) || 2;
+    const w = pos(a.windowWidth, b.windowWidth, b.screenWidth) || (c && pos(c.width) ? c.width / dpr : 375);
+    const h = pos(a.windowHeight, b.windowHeight, b.screenHeight) || (c && pos(c.height) ? c.height / dpr : 812);
+    const sa = (a.safeArea && pos(a.safeArea.top)) || (b.safeArea && pos(b.safeArea.top));
+    let menu = wxGet('getMenuButtonBoundingClientRect'); if (!menu || !pos(menu.bottom)) menu = null;
+    _si = { w, h, dpr, platform: d.platform || b.platform || 'unknown', model: d.model || b.model || '', menu, safeTop: sa || pos(a.statusBarHeight, b.statusBarHeight) || 0 };
+    console.log('[flow] sysinfo ' + JSON.stringify(_si));
+    return _si;
   }
   return { w: innerWidth, h: innerHeight, dpr: devicePixelRatio || 1, platform: 'browser', model: navigator.userAgent, menu: null, safeTop: 0 };
 }
@@ -94,10 +106,12 @@ export function createAudioContext() {
   } catch (e) { console.warn('audio ctx', e); return null; }
 }
 export function onShowHide(show, hide) {
-  if (isWx) { wx.onShow && wx.onShow(show); wx.onHide && wx.onHide(hide); return; }
+  if (isWx) { wxGet('onShow', show); wxGet('onHide', hide); return; }   // 试玩环境里没有这两个，不报错就行
   document.addEventListener('visibilitychange', () => (document.hidden ? hide() : show()));
 }
-export function vibrate() { try { if (isWx) wx.vibrateShort && wx.vibrateShort({ type: 'light' }); else navigator.vibrate && navigator.vibrate(30); } catch (e) {} }
+export function vibrate() { try { if (isWx) wxGet('vibrateShort', { type: 'light' }); else navigator.vibrate && navigator.vibrate(30); } catch (e) {} }
+// --dbg 包：打开试玩环境的 vConsole（试玩不能真机调试，只能这样在手机上看 console）
+if (isWx && typeof FORCE_DBG !== 'undefined' && FORCE_DBG) wxGet('setEnableDebug', { enableDebug: true });
 
 // ---- 试玩平台接口
 const T0 = now();
