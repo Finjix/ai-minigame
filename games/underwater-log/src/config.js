@@ -62,5 +62,5 @@ export const T = {
   trayCap: 12,
   billPer: 4,                      // 一个顾客给几捆钞票（一捆 = 1）
   beltV: 2.0, beltDt: 0.4,
-  endAfter: 2.4, cap: 90, idle: 2,
+  endAfter: 2.4, cap: 90, idle: 2.5,
 };

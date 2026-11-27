@@ -47,6 +47,6 @@ export const T = {
   need: [2, 4],
   fishN: 130,
   workerCatchDt: 0.2, frameCap: 30, beltDt: 0.32,
-  endAfter: 2.4, cap: 90, idle: 2,
+  endAfter: 2.4, cap: 90, idle: 2.5,
 };
 export const ORDER = ['hire', 'belt', 'staff'];   // 地块出现 / 解锁顺序
