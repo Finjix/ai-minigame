@@ -6,14 +6,16 @@
 // · 会动的东西投影：太阳方向的正交阴影图，只画会动的东西，环境着色器按世界坐标查（底图里静止物体的影子本来就有）。
 // · 写实做旧：会动的东西统一过一层成片里的做旧调色（降饱和、压亮度、偏暖灰），环境和人物同一层颗粒、暗角。
 import * as THREE from 'three';
-import { getMainCanvas, sysInfo, isWx } from '../../../shared/playable/platform.js';
+import { getMainCanvas, sysInfo, isWx, query } from '../../../shared/playable/platform.js';
 import { WATER_Y } from './config.js';
 
 export let renderer, scene, camera, meta, W = 1080, H = 1920, canvas;
 export const U = {   // 全局共享 uniform
   uRes: { value: new THREE.Vector2(1, 1) },
   uTime: { value: 0 },
-  uVig: { value: 0.18 },
+  uVig: { value: 0.12 },
+  // 整体调色（用户 11-27「太暗沉太淡，调明朗一点点」）：底图和会动的东西同一套，sRGB 里做——增益、中间调伽马（< 1 提亮）、饱和度、对比。?gr=增益,伽马,饱和,对比 调
+  uGr: { value: new THREE.Vector4(...((query.gr || '1.03,0.92,1.16,1.06').split(',').map(Number))) },
   uMS: { value: 0.62 }, uMK: { value: 0.85 }, uMT: { value: new THREE.Vector3(1.03, 1.0, 0.94) },
 };
 export const SUN = new THREE.Vector3(Math.cos(Math.PI / 3) * Math.cos(2.2602), Math.sin(Math.PI / 3), Math.cos(Math.PI / 3) * Math.sin(2.2602)).normalize();   // 方位 129.5°、高度角 60°（原工程量的）
@@ -76,13 +78,15 @@ export function toUI(x, y, z, out = [0, 0]) {
   out[0] = (_v.x * 0.5 + 0.5) * W; out[1] = (0.5 - _v.y * 0.5) * H; return out;
 }
 
+export const GRADE_GLSL = `vec3 grade_(vec3 c, vec4 g){ c = pow(max(c * g.x, 0.0), vec3(g.y)); float l = dot(c, vec3(0.2126, 0.7152, 0.0722)); c = mix(vec3(l), c, g.z); return clamp((c - 0.5) * g.w + 0.5, 0.0, 1.0); }`;
 // ------------------------------------------------------------------ 环境
 const ENV_VS = `void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 const ENV_FS = `precision highp float;
 uniform sampler2D tCol; uniform sampler2D tDep; uniform sampler2D tFlow; uniform sampler2D tSh;
 uniform vec4 uWin; uniform vec2 uRes; uniform vec2 uNF; uniform float uTime;
 uniform vec3 uCamPos; uniform vec3 uR; uniform vec3 uU; uniform vec3 uF; uniform float uWm; uniform float uHm; uniform float uD;
-uniform mat4 uShVP; uniform float uShOn; uniform vec3 uShCol; uniform float uVig; uniform vec2 uBig;
+uniform mat4 uShVP; uniform float uShOn; uniform vec3 uShCol; uniform float uVig; uniform vec2 uBig; uniform vec4 uGr;
+${GRADE_GLSL}
 float hn(vec2 p){ vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
 float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hn(i), hn(i + vec2(1.0, 0.0)), f.x), mix(hn(i + vec2(0.0, 1.0)), hn(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main(){
@@ -122,6 +126,7 @@ void main(){
       col *= mix(vec3(1.0), uShCol, sh * (water ? 0.45 : 1.0));
     }
   }
+  col = grade_(col, uGr);
   // 成片的颗粒 + 暗角
   vec2 d = s - 0.5; col *= 1.0 - uVig * smoothstep(0.35, 0.85, length(d * vec2(1.0, 1.25)));
   col += (hn(gl_FragCoord.xy + floor(uTime * 30.0) * 17.13) + hn(gl_FragCoord.xy * 1.7 + 3.1) - 1.0) * 2.5 / 255.0;
@@ -148,7 +153,7 @@ export function initEnv(tex) {
       uWin: { value: new THREE.Vector4(0, 0, 1, 1) }, uRes: U.uRes, uNF: { value: new THREE.Vector2(m.near, m.far) }, uTime: U.uTime,
       uCamPos: { value: Lk.clone().addScaledVector(F, -m.D) }, uR: { value: new THREE.Vector3(...m.R) }, uU: { value: new THREE.Vector3(...m.U) }, uF: { value: F },
       uWm: { value: m.Wm }, uHm: { value: m.Hm }, uD: { value: m.D }, uBig: { value: new THREE.Vector2(m.fullW, m.fullH) },
-      uShVP: { value: new THREE.Matrix4() }, uShOn: { value: 1 }, uShCol: { value: new THREE.Vector3(0.6, 0.64, 0.74) }, uVig: U.uVig,
+      uShVP: { value: new THREE.Matrix4() }, uShOn: { value: 1 }, uShCol: { value: new THREE.Vector3(0.6, 0.64, 0.74) }, uVig: U.uVig, uGr: U.uGr,
     },
     depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth,
   });
@@ -171,9 +176,10 @@ export function realLook(mat, { k = 1 } = {}) {
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh, r) => {
     if (prev && prev !== THREE.Material.prototype.onBeforeCompile) prev(sh, r);
-    Object.assign(sh.uniforms, { uRes: U.uRes, uVig: U.uVig, uMS: U.uMS, uMK: U.uMK, uMT: U.uMT });
-    sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'uniform vec2 uRes; uniform float uVig; uniform float uMS; uniform float uMK; uniform vec3 uMT;\nvoid main() {')
+    Object.assign(sh.uniforms, { uRes: U.uRes, uVig: U.uVig, uMS: U.uMS, uMK: U.uMK, uMT: U.uMT, uGr: U.uGr });
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'uniform vec2 uRes; uniform float uVig; uniform float uMS; uniform float uMK; uniform vec3 uMT; uniform vec4 uGr;\n' + GRADE_GLSL + '\nvoid main() {')
       .replace('#include <opaque_fragment>', `{ float l_ = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722)); outgoingLight = mix(vec3(l_), outgoingLight, uMS) * uMK * uMT * ${k.toFixed(3)};
+  outgoingLight = pow(grade_(pow(max(outgoingLight, 0.0), vec3(1.0 / 2.2)), uGr), vec3(2.2));
   vec2 d_ = gl_FragCoord.xy / uRes - 0.5; outgoingLight *= 1.0 - uVig * smoothstep(0.35, 0.85, length(d_ * vec2(1.0, 1.25))); }
 #include <opaque_fragment>`);
   };

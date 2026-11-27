@@ -4,7 +4,7 @@
 //   新圆木上每个点 = 参考圆木上相同相对位置的点，投到烘焙相机里取色。圆木晃的时候颜色跟着木头走
 import * as THREE from 'three';
 import { L } from './config.js';
-import { scene, addCaster, BAKE_VP, U, envMat } from './world.js';
+import { scene, addCaster, BAKE_VP, U, envMat, GRADE_GLSL } from './world.js';
 import { makeChar } from './chars.js';
 import { actor, stepActor } from './custactions.js';
 import { hash } from '../../../shared/playable/util.js';
@@ -19,11 +19,13 @@ const SEGS = [[-4.565, -1.45], [2.1, 4.174]];
 const REF = [28, 29, 30].map((i) => [-4.565, -0.01, -2.54 + i * ((FZ + 2.54) / 35)]);
 
 const VS = `varying vec3 vL; void main(){ vL = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-const FS = `precision highp float; uniform sampler2D tCol; uniform mat4 uVP; uniform vec3 uRef; uniform float uGlow; uniform vec2 uRes; uniform float uVig; varying vec3 vL;
+const FS = `precision highp float; uniform sampler2D tCol; uniform mat4 uVP; uniform vec3 uRef; uniform float uGlow; uniform vec2 uRes; uniform float uVig; uniform vec4 uGr; varying vec3 vL;
+${GRADE_GLSL}
 void main(){
   vec4 c = uVP * vec4(uRef + vL * vec3(0.9, 0.99, 0.9), 1.0); vec2 uv = c.xy / c.w * 0.5 + 0.5;   // 往圆心收一点，边上不采到背后的雪地
   vec3 col = texture2D(tCol, uv).rgb;
   col = col + vec3(1.0, 0.165, 0.118) * 0.5 * uGlow;   // 被推的那一下闪红（叠加，木纹和明暗还在）
+  col = grade_(col, uGr);
   vec2 d = gl_FragCoord.xy / uRes - 0.5; col *= 1.0 - uVig * smoothstep(0.35, 0.85, length(d * vec2(1.0, 1.25)));
   gl_FragColor = vec4(col, 1.0);
 }`;
@@ -40,14 +42,14 @@ export function buildFence(protos, emoList) {
       if ((si === 0 && i === 0) || (si === 1 && i === n)) continue;   // 转角桩底图里有
       const x = x0 + (x1 - x0) * (i / n);
       const m = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: FS,
-        uniforms: { tCol: envMat.uniforms.tCol, uVP: { value: BAKE_VP }, uRef: { value: new THREE.Vector3(...REF[k % REF.length]) }, uGlow: { value: 0 }, uRes: U.uRes, uVig: U.uVig } });
+        uniforms: { tCol: envMat.uniforms.tCol, uVP: { value: BAKE_VP }, uRef: { value: new THREE.Vector3(...REF[k % REF.length]) }, uGlow: { value: 0 }, uRes: U.uRes, uVig: U.uVig, uGr: U.uGr } });
       const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, -0.01, FZ); mesh.castShadow = true; mesh.frustumCulled = false;
       scene.add(mesh); addCaster(mesh);
       logs.push({ mesh, x, d: 0, v: 0, I: 0 });
     }
   });
   // ?fencedbg=1：在参考圆木原位放一根（对齐了就看不出来；半径、采样不对会露边）
-  if (query.fencedbg) for (const r of REF) { const m = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: FS, uniforms: { tCol: envMat.uniforms.tCol, uVP: { value: BAKE_VP }, uRef: { value: new THREE.Vector3(...r) }, uGlow: { value: +query.fencedbg - 1 }, uRes: U.uRes, uVig: { value: 0 } } });
+  if (query.fencedbg) for (const r of REF) { const m = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: FS, uniforms: { tCol: envMat.uniforms.tCol, uVP: { value: BAKE_VP }, uRef: { value: new THREE.Vector3(...r) }, uGlow: { value: +query.fencedbg - 1 }, uRes: U.uRes, uVig: { value: 0 }, uGr: U.uGr } });
     const mesh = new THREE.Mesh(geo, m); mesh.position.set(...r); scene.add(mesh); }
   // 第一排：离栅栏 0.55m（原工程 crowdsim 的 frontGap），面朝院子
   const xs = [-4.1, -3.5, -2.9, -2.3, -1.75, 2.45, 3.05, 3.65];

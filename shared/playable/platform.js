@@ -107,7 +107,7 @@ export function report(id, result = 1, once = true) {
   try { if (isWx && wx.reportGameEvent) wx.reportGameEvent({ eventId: id, costTime: Math.round(now() - T0), result }); } catch (e) {}
 }
 // 时长节点：前 1 分钟每 30 秒一次（30、60），1–2 分钟每 10 秒一次（70…120）；编号 = 3000 + 秒数（3030 … 3120）。
-// t 用游戏时间（首帧起算、切后台不走），和 115 秒强制结束、120 秒强制跳转同一个时钟；每帧调，跨过几个节点就补几个
+// t 用游戏时间（首帧起算、切后台不走），和 115 秒强制结束、结束后 5 秒强制跳转同一个时钟；每帧调，跨过几个节点就补几个
 export const TIME_MARKS = [30, 60, 70, 80, 90, 100, 110, 120];
 let markI = 0;
 export function reportTime(t) {
@@ -133,7 +133,7 @@ export function download(fromEnd = false) {
   try { if (window.super_html && window.super_html.download) window.super_html.download(); } catch (e) {}
   if (fromEnd) gameEnd();
 }
-// 满 T.jump 秒（120）不管点没点过「立即体验」都强制跳转一次；不算玩家点击，不报 1012
+// 结束页出来 T.endJump 秒（5）不管点没点过「立即体验」都强制跳转一次；不算玩家点击，不报 1012
 let jumped = false;
 export function autoJump() {
   if (jumped) return; jumped = true;

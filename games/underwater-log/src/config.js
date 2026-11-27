@@ -62,7 +62,7 @@ export const T = {
   trayCap: 12,
   billPer: 2,                      // 一个顾客给几捆钞票（一捆 = 1）
   beltV: 2.0, beltDt: 0.4,
-  endAfter: 2.4, cap: 115, jump: 120, idle: 2.5,   // 满 115 秒强制结束、满 120 秒强制跳转（定稿规则）
-  endJump: 5,                      // 结束页出来（提前通关或满 115 秒）5 秒后强制跳转，最晚满 120 秒
+  endAfter: 2.4, cap: 115, idle: 2.5,              // 满 115 秒强制结束（定稿规则）
+  endJump: 5,                      // 结束页一出来（提前通关或满 115 秒）就倒数 5 秒强制跳转，所以最晚 120 秒
   mid: 60, midDur: 5,              // 满 60 秒暂停弹「立即体验」中间跳转页，倒计时 5 秒没点就回到游戏（shared/playable/midjump.js）
 };
