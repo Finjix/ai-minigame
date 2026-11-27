@@ -68,6 +68,16 @@ let atlasTex = null, AW = 2048, AH = 2048;
 export const sprite = (k) => SPR[k];
 export const atlas = () => atlasTex;
 export const quads = () => nq;
+// 图里不透明（alpha > 20）内容的范围 [x, y, w, h]；读不了像素就用整张图
+function alphaBox(img) {
+  try {
+    const w = img.width, h = img.height, cv = createCanvas(w, h), c = cv.getContext('2d'); c.drawImage(img, 0, 0);
+    const d = c.getImageData(0, 0, w, h).data; let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 >= x0) return [x0, y0, x1 - x0 + 1, y1 - y0 + 1];
+  } catch (e) { console.warn('alphaBox', e); }
+  return [0, 0, img.width, img.height];
+}
 export function buildAtlas({ W, H, logo, bubIcon, packIcon, coverImg, renderer: r, extra }) {
   renderer = r; bubIcon = bubIcon || packIcon;
   const defs = [];
@@ -76,7 +86,8 @@ export function buildAtlas({ W, H, logo, bubIcon, packIcon, coverImg, renderer: 
   def('white', [0, 0, 8, 8], (c) => { c.fillStyle = '#fff'; c.fillRect(-2, -2, 12, 12); });
   def('black', [0, 0, 8, 8], (c) => { c.fillStyle = '#000'; c.fillRect(-2, -2, 12, 12); });
   def('logo', [-24, -24, LOGO.w + 36, LOGO.h + 36], (c) => { c.save(); c.shadowColor = 'rgba(0,0,0,0.6)'; c.shadowOffsetX = c.shadowOffsetY = 3; c.shadowBlur = 5; c.drawImage(logo, 0, 0, LOGO.w, LOGO.h); c.restore(); });
-  { const s = 360, o = s * logo.height / logo.width; def('logoBig', [-s / 2 - 30, -o / 2 - 30, s / 2 + 30, o / 2 + 40], (c) => { c.save(); c.shadowColor = 'rgba(0,0,0,0.5)'; c.shadowOffsetY = 4; c.shadowBlur = 10; c.drawImage(logo, -s / 2, -o / 2, s, o); c.restore(); }); }
+  // 结束页 / 中间跳转页的大 logo：按图里不透明内容的范围居中（logo 图左右留白不一样），内容宽 560，和下面 600 宽的大按钮差不多
+  { const [bx, by, bw, bh] = alphaBox(logo), s = 560, o = s * bh / bw; def('logoBig', [-s / 2 - 30, -o / 2 - 30, s / 2 + 30, o / 2 + 40], (c) => { c.save(); c.shadowColor = 'rgba(0,0,0,0.5)'; c.shadowOffsetY = 4; c.shadowBlur = 12; c.drawImage(logo, bx, by, bw, bh, -s / 2, -o / 2, s, o); c.restore(); }); }
   { const s = 600, o = s * logo.height / logo.width; def('logoLoad', [-s / 2 - 30, -o / 2 - 30, s / 2 + 30, o / 2 + 40], (c) => { c.save(); c.shadowColor = 'rgba(0,0,0,0.5)'; c.shadowOffsetY = 4; c.shadowBlur = 14; c.drawImage(logo, -s / 2, -o / 2, s, o); c.restore(); }); }
   def('btnTop', [-134 - 24, -41 - 24, 134 + 24, 41 + 30], (c) => greenBtn(c, 268, 82, '立即体验', 40));
   def('btnEnd', [-300 - 24, -75 - 24, 300 + 24, 75 + 30], (c) => greenBtn(c, 600, 150, '立即体验', 66));

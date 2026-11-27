@@ -1,5 +1,5 @@
 // 中间跳转页：游戏时间满 at 秒（60）暂停游戏，弹出「立即体验」页（压暗 + 大 logo + 大按钮，和结束页同一套），
-// 下面一条倒计时进度和「N 秒后继续游戏」，倒计时 dur 秒（5，真实时间）。
+// 按钮下面一行「N 秒后继续游戏」（不要进度条），倒计时 dur 秒（5，真实时间）。
 // 点大按钮 = 玩家点「立即体验」（download，报 1012）；倒计时完没点就回到游戏，接着原来的状态玩。
 // 只弹一次；到点时结束页已经出来了就不弹。点按钮以外的地方不做事（防误触）。
 // 打点：弹出 3200，倒计时完回到游戏 3201。
@@ -34,10 +34,8 @@ export function createMid({ W, H, at = 60, dur = 5 }) {
     UI.spr('black', 0, 0, { w: W, h: H, a: 0.55 * s });
     if (o > 0.01) UI.spr('logoBig', W / 2, H * 0.4, { s: o });
     if (c > 0.01) UI.spr('btnEnd', btn.x, btn.y, { s: c * (1 + 0.05 * Math.sin(r * 6)) });
-    const left = Math.max(0, dur - r), n = Math.min(Math.ceil(dur), Math.max(1, Math.ceil(left))), bx = W * 0.17, by = H * 0.65, a = smooth((r - 0.3) / 0.3);
-    UI.spr('barBg', bx, by, { w: W * 0.66, h: 16, a });
-    UI.spr('barFill', bx, by, { w: Math.max(2, W * 0.66 * left / dur), h: 16, a });
-    UI.spr('midTip' + n, W / 2, by + 70, { a });
+    const left = Math.max(0, dur - r), n = Math.min(Math.ceil(dur), Math.max(1, Math.ceil(left))), a = smooth((r - 0.3) / 0.3);
+    UI.spr('midTip' + n, W / 2, H * 0.65, { a });
   };
   return m;
 }

@@ -107,7 +107,7 @@ export function report(id, result = 1, once = true) {
   try { if (isWx && wx.reportGameEvent) wx.reportGameEvent({ eventId: id, costTime: Math.round(now() - T0), result }); } catch (e) {}
 }
 // 时长节点：前 1 分钟每 30 秒一次（30、60），1–2 分钟每 10 秒一次（70…120）；编号 = 3000 + 秒数（3030 … 3120）。
-// t 用游戏时间（首帧起算、切后台不走），和 110 秒强制结束、120 秒强制跳转同一个时钟；每帧调，跨过几个节点就补几个
+// t 用游戏时间（首帧起算、切后台不走），和 115 秒强制结束、120 秒强制跳转同一个时钟；每帧调，跨过几个节点就补几个
 export const TIME_MARKS = [30, 60, 70, 80, 90, 100, 110, 120];
 let markI = 0;
 export function reportTime(t) {
