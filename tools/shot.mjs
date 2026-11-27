@@ -9,7 +9,7 @@ const { default: puppeteer } = await import('puppeteer-core');   // 仓库 devDe
 const [game, qs = '', cond = 'true', out = 'build/shot.jpg', nArg = '1', gapArg = '500'] = process.argv.slice(2);
 const EVAL = out === '--eval';   // 第 4 个参数写 --eval：等游戏起来以后算第 3 个参数的表达式，打印结果（不截图）
 const N = +nArg, GAP = +gapArg;
-const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true,
+const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true, protocolTimeout: 900000,   // 无头 swiftshader 慢，跑到 60 秒以后要好几分钟
   args: ['--enable-gpu', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'], defaultViewport: { width: 405, height: 720, deviceScaleFactor: 2 } });
 const page = await browser.newPage();
 page.on('pageerror', (e) => console.error('[pageerror]', e.message));
@@ -21,7 +21,7 @@ const urls = await page.evaluate(`(async () => {
   const d = __dbg, out = [];
   for (let n = 0; n < ${N}; n++) {
     const t0 = performance.now();
-    while (performance.now() - t0 < 60000 && !(${cond})) await wait(20);
+    while (performance.now() - t0 < 600000 && !(${cond})) await wait(20);
     d.paused = true; await wait(80);
     out.push(await new Promise((k) => { window.__cap = k; }));
     d.paused = false; await wait(${GAP});

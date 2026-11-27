@@ -3,6 +3,11 @@
 export const isWx = typeof wx !== 'undefined' && typeof GameGlobal !== 'undefined';
 const ROOT = isWx ? '' : (typeof location !== 'undefined' ? location.pathname.replace(/[^/]*$/, '') : '');
 
+// 单文件 HTML（tools/html.mjs）：资源以 base64 内嵌在 window.__ASSETS[路径]，双击就能玩，不走 fetch
+const EMB = !isWx && typeof window !== 'undefined' ? window.__ASSETS : null;
+const b64buf = (b) => { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u.buffer; };
+const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
+
 export const query = (() => {
   if (isWx) { try { const o = wx.getLaunchOptionsSync && wx.getLaunchOptionsSync(); return (o && o.query) || {}; } catch (e) { return {}; } }
   const q = {}; new URLSearchParams(location.search).forEach((v, k) => { q[k] = v; }); return q;
@@ -46,15 +51,17 @@ export function loadImage(path) {
     const img = isWx ? wx.createImage() : new Image();
     img.onload = () => res(img);
     img.onerror = (e) => rej(new Error('image ' + path + ' ' + (e && e.errMsg || '')));
-    img.src = ROOT + path;
+    img.src = EMB && EMB[path] ? 'data:' + (MIME[path.split('.').pop()] || 'image/png') + ';base64,' + EMB[path] : ROOT + path;
   });
 }
 export function readBinary(path) {
   if (isWx) return new Promise((res, rej) => wx.getFileSystemManager().readFile({ filePath: path, success: (r) => res(r.data), fail: (e) => rej(new Error('read ' + path + ' ' + e.errMsg)) }));
+  if (EMB && EMB[path]) return Promise.resolve(b64buf(EMB[path]));
   return fetch(ROOT + path).then((r) => { if (!r.ok) throw new Error('fetch ' + path + ' ' + r.status); return r.arrayBuffer(); });
 }
 export function readJSON(path) {
   if (isWx) return new Promise((res, rej) => wx.getFileSystemManager().readFile({ filePath: path, encoding: 'utf8', success: (r) => res(JSON.parse(r.data)), fail: (e) => rej(new Error('read ' + path + ' ' + e.errMsg)) }));
+  if (EMB && EMB[path]) return Promise.resolve(JSON.parse(new TextDecoder().decode(b64buf(EMB[path]))));
   return fetch(ROOT + path).then((r) => r.json());
 }
 
@@ -99,6 +106,17 @@ export function report(id, result = 1, once = true) {
   if (once && reported.has(id)) return; reported.add(id);
   try { if (isWx && wx.reportGameEvent) wx.reportGameEvent({ eventId: id, costTime: Math.round(now() - T0), result }); } catch (e) {}
 }
+// 时长节点：前 1 分钟每 30 秒一次（30、60），1–2 分钟每 10 秒一次（70…120）；编号 = 3000 + 秒数（3030 … 3120）。
+// t 用游戏时间（首帧起算、切后台不走），和 110 秒强制结束、120 秒强制跳转同一个时钟；每帧调，跨过几个节点就补几个
+export const TIME_MARKS = [30, 60, 70, 80, 90, 100, 110, 120];
+let markI = 0;
+export function reportTime(t) {
+  while (markI < TIME_MARKS.length && t >= TIME_MARKS[markI]) {
+    const s = TIME_MARKS[markI++];
+    console.log('[flow] time ' + s + 's → ' + (3000 + s) + ' t=' + t.toFixed(1));
+    report(3000 + s);
+  }
+}
 let endSent = false;
 export function gameEnd() {
   if (endSent) return; endSent = true;
@@ -114,4 +132,13 @@ export function download(fromEnd = false) {
   if (isWx) { gameEnd(); return; }
   try { if (window.super_html && window.super_html.download) window.super_html.download(); } catch (e) {}
   if (fromEnd) gameEnd();
+}
+// 满 T.jump 秒（120）不管点没点过「立即体验」都强制跳转一次；不算玩家点击，不报 1012
+let jumped = false;
+export function autoJump() {
+  if (jumped) return; jumped = true;
+  console.log('# playable_controller download: auto #');
+  if (isWx) { try { wx.notifyMiniProgramPlayableStatus && wx.notifyMiniProgramPlayableStatus({ isEnd: true }); } catch (e) {} return; }
+  try { if (window.super_html && window.super_html.download) window.super_html.download(); } catch (e) {}
+  gameEnd();
 }

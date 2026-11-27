@@ -1,6 +1,6 @@
 // 入口：加载页 → 建场 → 每帧（输入 / 自动玩 → 玩法 → 镜头 → 3D → 界面）
-// 试玩流程：开场就自动玩，自动玩期间一律显示「轻划移动」引导；手一碰就交给玩家，停手 2 秒又自动玩（没有「我来操作！」按钮）；
-// 左上和结束页都有「立即体验」；最后一个地块买完 2.4 秒（或者满 90 秒）强制结束：压暗 + 大 logo，微信里通知平台试玩结束。
+// 试玩流程：开场等 2.5 秒（和停手一样）才自动玩，自动玩期间一律显示「轻划移动」引导；手一碰就交给玩家，停手 2.5 秒又自动玩（没有「我来操作！」按钮）；
+// 左上和结束页都有「立即体验」；最后一个地块买完 2.4 秒（或者满 110 秒）强制结束，满 120 秒强制跳转：压暗 + 大 logo，微信里通知平台试玩结束。
 import '../../../shared/playable/adapter.js';
 import * as THREE from 'three';
 import { initRenderer, initCamera, initEnv, initLights, render, setView, toUI, bigPx, scene, W as W0, view, VIEW_M, U, camera } from './world.js';
@@ -12,12 +12,15 @@ import { initItems } from './items.js';
 import * as GM from './game.js';
 import { addStatic, makeSnow } from './fx.js';
 import { initAudio, play, startBgm, endMusic, resume } from '../../../shared/playable/audio.js';
-import { onTouch, sysInfo, raf, now, report, gameEnd, download, hideDownload, isWx, query, loadImage, onShowHide, createCanvas } from '../../../shared/playable/platform.js';
+import { onTouch, sysInfo, raf, now, report, reportTime, gameEnd, download, autoJump, hideDownload, isWx, query, loadImage, onShowHide, createCanvas } from '../../../shared/playable/platform.js';
 import { T, L, WATER_Y } from './config.js';
+import { createMid } from '../../../shared/playable/midjump.js';
 import { clamp01, smooth, backOut, lerp, hash } from '../../../shared/playable/util.js';
 
 let W = 1080, H = 1920, ready = false, failed = false;
-const flow = { touching: false, lastTouch: -Infinity, firstTouch: Infinity, auto: true, autoT: 0, ended: false, endT: Infinity, joy: null };
+const flow = { touching: false, lastTouch: 0, firstTouch: Infinity, auto: false, autoT: 0,   // 开局也等停手 2.5 秒才自动玩（lastTouch 从 0 算）
+   ended: false, endT: Infinity, joy: null };
+let MID = null;   // 中间跳转页，建完界面图集后创建
 const joy = { id: null, ox: 0, oy: 0, dx: 0, dy: 0 };
 const TD = 10, OP = 80;
 let t0 = 0, last = 0, gameT = 0, coverA = 1, readyT = -1, progress = 0.05, shown = 0;
@@ -39,6 +42,7 @@ async function boot() {
   // 加载页先起来：logo、封面图、货的图标
   const [logo, cover, packIconImg] = await Promise.all([loadImage('assets/ui/logo.png'), loadImage('assets/ui/cover.jpg'), loadImage('assets/ui/pack_icon.png')]);
   const { LOGO } = UI.buildAtlas({ W, H, logo, bubIcon: packIconImg, coverImg: cover, renderer: world.renderer }); ui.h = LOGO.h; hi.y = ui.y + ui.h + 10;
+  MID = createMid({ W, H, at: T.mid, dur: T.midDur });
   LD.setProgress((f) => { progress = Math.max(progress, 0.08 + f * 0.82); });
   raf(frame);
   // 资源
@@ -82,6 +86,7 @@ function touchStart(p) {
   resume();
   const [x, y] = toL(p);
   if (!ready) { if (failed) download(); return; }
+  if (MID.touch(x, y, (now() - t0) / 1000)) return;   // 中间跳转页弹着：只认大按钮
   if (flow.ended) { download(false); return; }
   if (hitTop(x, y)) { download(false); return; }
   if (joy.id === null) { joy.id = p.id; joy.ox = x; joy.oy = y; joy.dx = joy.dy = 0; flow.touching = true; firstTouch(); }
@@ -93,6 +98,7 @@ function touchMove(p) {
   joy.dx = o; joy.dy = c;
 }
 function touchEnd(p) { if (p.id !== joy.id) return; joy.id = null; joy.dx = joy.dy = 0; flow.touching = false; flow.lastTouch = gameT; }
+function releaseJoy() { joy.id = null; joy.dx = joy.dy = 0; flow.touching = false; flow.joy = null; flow.lastTouch = gameT; }
 function firstTouch() { if (flow.firstTouch === Infinity) { flow.firstTouch = gameT; report(1004); report(2001); } }
 const hitTop = (x, y) => x >= hi.x - 10 && x <= hi.x + hi.w + 10 && y >= hi.y - 10 && y <= hi.y + hi.h + 10;
 
@@ -103,6 +109,8 @@ function joyToWorld() {
   return [Rx * dx - Fx * dy, Rz * dx - Fz * dy];
 }
 function updateFlow(t) {
+  reportTime(t);                 // 时长节点打点（30、60、70…120 秒），先于跳转报出去
+  if (t >= T.jump) autoJump();   // 满 120 秒不点「立即体验」也强制跳转
   if (flow.ended) { GM.input.active = false; return; }
   flow.joy = flow.touching ? { x: joy.ox, y: joy.oy, dx: joy.dx, dy: joy.dy } : null;
   if (flow.touching) {
@@ -110,7 +118,7 @@ function updateFlow(t) {
     const s = Math.hypot(joy.dx, joy.dy);
     if (s > TD) { const [vx, vz] = joyToWorld(); GM.input.vx = vx; GM.input.vz = vz; } else { GM.input.vx = GM.input.vz = 0; }
     GM.input.active = true;
-  } else if (t - flow.lastTouch >= T.idle) { if (!flow.auto) flow.autoT = t; flow.auto = true; GM.input.active = false; }
+  } else if (t - flow.lastTouch >= T.idle) { if (!flow.auto) { console.log("[flow] auto t=" + t.toFixed(2)); if (flow.firstTouch !== Infinity) flow.autoT = t; } flow.auto = true; GM.input.active = false; }   // 开局的引导已经在显示，不重新淡入
   else { flow.auto = false; GM.input.active = true; GM.input.vx = GM.input.vz = 0; }
   if (t >= Math.min(GM.G.endAt, T.cap)) endGame(t);
 }
@@ -139,7 +147,7 @@ function drawUI(t, rt) {
   UI.begin();
   if (ready && coverA < 1) {
     drawCrowdEmo(t); drawBubbles(t); drawFull(t);
-    drawHUD(t); drawTutorial(t); drawJoy(); drawTop(t); drawEnd(t);
+    drawHUD(t); if (!MID.on) { drawTutorial(t); drawJoy(); } drawTop(t); drawEnd(t); MID.draw(rt);
   }
   UI.setCover(coverA);
   if (coverA > 0.003) drawLoading(rt);
@@ -198,7 +206,7 @@ function drawHUD(t) {
   UI.num(Math.round(hudV), c - 22, e + 2, { set: 'a', sc });
 }
 function drawTutorial(t) {
-  if (!flow.auto || flow.ended) return;   // 自动玩时一律显示「轻划移动」和滑动手势
+  if (flow.ended || flow.touching || !(flow.auto || flow.firstTouch === Infinity)) return;   // 自动玩时、开局等自动玩的 2.5 秒里都显示「轻划移动」和滑动手势
   const r = smooth((t - flow.autoT) / 0.3), s = W / 2, o = H - 510, c = (t % 1.6) / 1.6, pn = 1.35, h = Math.sin(c * Math.PI * 2) * 150 * pn;
   UI.spr('tutLine', s, o, { a: r }); UI.spr('hand', s + h, o + 18 * pn, { a: r }); UI.spr('tutText', s, o + 150 * pn, { a: r });
 }
@@ -264,16 +272,18 @@ function frame() {
     if (readyT < 0) { readyT = rt; last0 = n; report(1003); console.log('[flow] first frame load=' + rt.toFixed(2) + 's canvas=' + world.canvas.width + 'x' + world.canvas.height + ' webgl2=' + world.renderer.capabilities.isWebGL2); if (typeof window !== 'undefined' && window.__ready) window.__ready(); }
     coverA = 1 - smooth((rt - readyT - 0.15) / 0.5);
     // 固定步长追帧：卡顿或后台降帧时游戏时间照样按真实时间走（每步最多 1/30 秒）
-    let acc = DBG.paused ? 0 : Math.min(0.5, (n - last0) / 1000) * SPEED; last0 = n;   // __dbg.paused = true 定格（截图对比用）
+    let acc = DBG.paused || MID.on ? 0 : Math.min(0.5, (n - last0) / 1000) * SPEED; last0 = n;   // __dbg.paused = true 定格（截图对比用）
     try {
       while (acc > 1e-4) {
         const st = Math.min(acc, 1 / 30); acc -= st;
         gameT += st; U.uTime.value = gameT;
         updateFlow(gameT);
+        if (MID.check(gameT, rt, flow.ended)) { releaseJoy(); break; }   // 满 60 秒：暂停，弹中间跳转页
         GM.update(gameT, st, flow.auto && !flow.ended);
         updateCamera(st);
       }
       if (DBG.paused && DBG.look) updateCamera(0, true);
+      MID.update(rt);
     } catch (e) { if (errs.length < 50) { errs.push(String(e && (e.stack || e.message) || e).slice(0, 300)); console.error(e); } }
     fpsAvg = fpsAvg * 0.95 + (1 / Math.max(1e-3, dt)) * 0.05;
     if (snow) snow.update(gameT, [focus[0], focus[2]], world.canvas.height / 1920);
@@ -291,5 +301,5 @@ function fail(e) {
   failed = true; console.error('playable fail:', e);
   if (isWx) gameEnd();
 }
-const DBG = (isWx ? GameGlobal : window).__dbg = { UI, GM, world, flow, T, paused: false, look: null, st: () => ({ coverA, readyT, ready, progress, shown, gameT, frames }) };
+const DBG = (isWx ? GameGlobal : window).__dbg = { UI, GM, world, flow, T, mid: () => MID, paused: false, look: null, st: () => ({ coverA, readyT, ready, progress, shown, gameT, frames }) };
 boot().catch((e) => { console.error(e); fail(e); });

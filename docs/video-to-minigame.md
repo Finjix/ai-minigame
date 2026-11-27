@@ -22,7 +22,7 @@
 1. 抽帧：`ffmpeg -i 成片.mp4 -vf fps=1 _ref/film/f_%02d.jpg`，再在关键动作附近加密抽。
 2. 写一张节拍表：时间 → 镜头 → 主角在干什么 → 屏幕上出了什么（数字、地块、按钮）→ **配角在干什么**（顾客推栏、拍栏、举手催、拿到货欢呼；厨师切菜）。配角站着不动用户会指出来，**画面里的人群也算**（不能只做前排）；这些动作源工程里通常有现成代码（瀑布捞鱼：`web/custactions.js`）。
 3. 从节拍表里找出**核心循环**（瀑布捞鱼：捕鱼 → 交给加工台 → 拿货 → 卖货 → 收钱 → 买地块）和**升级节点**（雇工、传送带、售货员）。成片里一闪而过的东西只做装饰，不做成玩法。
-4. 定试玩时长：自动玩从开局到最后一次解锁约 55–60 秒，满 90 秒强制结束。
+4. 定试玩时长：自动玩从开局到最后一次解锁约 55–60 秒，满 110 秒强制结束，满 120 秒强制跳转（`T.cap`、`T.jump`）。
 
 ## 第 2 步：搭工程（照 `games/waterfall-fishing/` 的结构）
 
@@ -39,7 +39,8 @@ games/<名字>/
 | 模块 | 内容 |
 |---|---|
 | `adapter.js` | 微信环境的 polyfill：TextDecoder、AbortController、`self`、navigator、performance |
-| `platform.js` | 微信 / 浏览器的差异：画布、触摸、图片和二进制读取、音频、安全区和胶囊位置、埋点 `report`、`gameEnd`、`download` |
+| `platform.js` | 微信 / 浏览器的差异：画布、触摸、图片和二进制读取、音频、安全区和胶囊位置、埋点 `report`、时长节点打点 `reportTime`、`gameEnd`、`download`、120 秒强制跳转 `autoJump` |
+| `midjump.js` | 60 秒中间跳转页：暂停、「立即体验」、5 秒倒计时回到游戏（`createMid`） |
 | `ui.js` | 精灵图集 + 一次合批画完的 2D 界面（logo、立即体验、轻划移动、摇杆、数字、订单气泡、表情）。`buildAtlas({ …, renderer, bubIcon, extra })`：气泡图标、游戏自己的精灵从参数传。没有「我来操作！」 |
 | `audio.js`、`loader.js`、`util.js` | 音效 / 背景音、带进度的资源加载、数学小工具 |
 
@@ -50,12 +51,15 @@ games/<名字>/
 
 直接用 `shared/playable/` 和已有游戏的 `main.js` 流程（它们就是标准），规则：
 
-- 开局直接自动玩；**自动玩期间一律显示「轻划移动」和滑动手势**（不只是第一次）。
+- 开局不直接自动玩：和停手一样等 2.5 秒才开始（`flow` 初值 `auto: false, lastTouch: 0`），等的时候主角不动，「轻划移动」和手势照常显示；到点转自动玩时引导不重新淡入。**自动玩期间一律显示「轻划移动」和滑动手势**（不只是第一次）。进自动玩打 `[flow] auto t=…` 日志，验证看它是不是 2.50。
 - 任意处按下就是摇杆原点（拖动 80 封顶，10 以内不动）；松手 2.5 秒后恢复自动玩（`config.js` 的 `idle: 2.5`，所有游戏统一）。
 - **没有「我来操作！」按钮。**
 - **「立即体验」在左上 logo 下和结束页都显示，微信里也显示。**
-- 最后一次解锁后 2.4 秒，或满 90 秒，强制结束：画面压暗，显示大 logo。微信里调用 `wx.notifyMiniProgramPlayableStatus({ isEnd: true })`。
+- 最后一次解锁后 2.4 秒，或满 110 秒，强制结束：画面压暗，显示大 logo。微信里调用 `wx.notifyMiniProgramPlayableStatus({ isEnd: true })`。
+- 满 60 秒（游戏时间）弹中间跳转页（`shared/playable/midjump.js`，`T.mid` / `T.midDur`）：游戏时间停住，压暗 + 大 logo +「立即体验」大按钮（和结束页同一套）+ 倒计时进度条和「N 秒后继续游戏」，倒计时 5 秒按真实时间走；只认大按钮（报 1012 并跳转），倒计时完没点就回到游戏（正在按的摇杆松开，按停手处理）；到点时已经通关就不弹。打点 3200 弹出、3201 倒计时完回到游戏；日志 `[flow] mid open` / `[flow] mid close timeout|click`。接法见 `midjump.js` 开头的注释。暂停 5 秒以后，110 / 120 秒的时间点在真实时间上都往后推 5 秒。
+- 满 120 秒（游戏时间）不管玩家点没点「立即体验」，都调一次 `autoJump()` 强制跳转（浏览器 / 渠道走 `super_html.download`，微信里再通知一次 `isEnd`）；不报 1012（那是玩家点击）。验证：`?speed=8` 打开、控制台里 `__dbg.flow.touching = true` 按住不让通关，看日志 110.0 秒 `[flow] end`、120.0 秒 `download: auto`。
 - 埋点 `wx.reportGameEvent` 的编号和已有游戏一致：1001 启动、1003 首帧、1004/2001 首次触摸、1011/1013 结束、1012 点立即体验。
+- 时长节点打点：`updateFlow(t)` 第一行调 `reportTime(t)`（`platform.js`），前 1 分钟每 30 秒、1–2 分钟每 10 秒报一次，编号 3000 + 秒数（3030、3060、3070 … 3120）；用游戏时间，结束页上也照报（算停留时长），3120 要在 120 秒 `autoJump()` 之前报。验证：`?speed=8` 跑完看 8 条 `[flow] time` 日志。
 - 微信里，右上角胶囊菜单下面才放 HUD，顶部按安全区让开刘海（`sysInfo().menu`、`safeTop`）。
 
 ## 第 4 步：写实画面
@@ -111,6 +115,7 @@ games/<名字>/
    窗格没显示时浏览器不触发 `requestAnimationFrame`，加 `?raf=timer` 用定时器跑主循环；窗格藏起来时画布也不渲染，截图用 `node tools/shot.mjs <名字> "<网址参数>" "<等待条件>" <输出> [张数]`（无头 Edge，等到条件成立定格截画布）；输出写 `--eval` 就是在页面里跑那段 JS、打印结果（量尺寸、数穿模）。性能：直接在页面里给 `GM.update`、`world.render` 计时，或看微信开发者工具里的 fps。
 3. 微信开发者工具：MCP 不可用时用命令行，`node tools/wxide.mjs <工具名> --project <绝对路径>/games/<名字>/minigame …`（直接把参数数组交给开发者工具的 Electron，不经过 cmd，JS 源码里的引号不会被拆坏）。`open_project_window` 打开、`simulator_screenshot` 截图、`simulator_refresh` 重新编译、`automation_game_action` 模拟滑动、`close_project_window` 关掉（移动文件前）。
    `automation_evaluate` 跑在另一个 JS 上下文里，读不到游戏的 `GameGlobal.__dbg`；`get_simulator_console` 在模拟器窗口模式下常常是空的。要看微信里的 fps 和报错，用 `node tools/build.mjs <名字> --dbg` 打一个带状态浮层的包，截图放大左下角看，看完重新正常打包。
+   量时间（例如停手多久恢复自动玩）别靠连拍截图：一次 `simulator_screenshot` 要 1.5 秒左右，图也只有 149×321。临时加一行 `console.log`，打包刷新，用 `automation_game_action --action swipe` 滑一下，再 `get_simulator_console --command "grep <关键字>"` 读出来（一次只 grep 一个关键字，`a\|b` 这种写法什么都返回不了），量完撤掉日志重新打包。`[flow] auto`、`[flow] time`、`[flow] unlock`、`[flow] end` 是常驻日志，不用撤。
 4. 包大小：`minigame/` 去掉 `index.html` 要小于 4 MB（4194304 字节）。超了先看 `tools/glbsize.mjs` 哪个属性占地方（切线、第二套 UV、没用到的动画片段最常见），再看底图取景范围外的部分。
 5. 在报告里写清楚**没有验证的部分**（真机、声音有没有用耳朵听过）。
 
@@ -118,4 +123,5 @@ games/<名字>/
 
 - 更新这个游戏的 README（玩法、画面做法、重新烘焙步骤），并在根 README 的游戏列表里加一行。
 - 按 [AGENTS.md](../AGENTS.md) 的迭代规则，更新本文和 [lessons.md](lessons.md)。
+- 用户要单独的网页版时：`node tools/html.mjs <名字> <输出.html>` 打成一个能双击打开的 HTML（资源内嵌，不用起服务），用无头 Edge 按 `file://` 打开截图确认。这台机器的桌面是 `D:\`（注册表 User Shell Folders 改过），写桌面先查 `[Environment]::GetFolderPath('Desktop')`。
 - 用户要求提交时才提交，提交在功能分支上。

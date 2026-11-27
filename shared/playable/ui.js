@@ -93,7 +93,8 @@ export function buildAtlas({ W, H, logo, bubIcon, packIcon, coverImg, renderer: 
   def('joyBase', [-120, -120, 120, 120], (c) => { c.fillStyle = 'rgba(255,255,255,0.22)'; c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 6; c.beginPath(); c.arc(0, 0, 104, 0, 7); c.fill(); c.stroke(); });
   def('joyKnob', [-60, -60, 60, 60], (c) => { c.fillStyle = 'rgba(255,255,255,0.8)'; c.beginPath(); c.arc(0, 0, 48, 0, 7); c.fill(); });
   def('full', [-110, -46, 110, 46], (c) => { rr(c, -96, -34, 192, 68, 34); c.fillStyle = 'rgba(214,40,30,0.92)'; c.fill(); c.lineWidth = 4; c.strokeStyle = '#fff'; c.stroke(); text(c, '满了', 0, 2, { size: 40, fill: '#fff', stroke: '#7a120a', lw: 6 }); });
-  def('loading', [-140, -40, 140, 40], (c) => text(c, '加载中', 0, 0, { size: 40, fill: '#fff', stroke: 'rgba(0,0,0,0.55)', lw: 6, weight: 700 }));
+  for (let n = 1; n <= 5; n++) def('midTip' + n, [-280, -40, 280, 40], (c) => text(c, n + ' 秒后继续游戏', 0, 0, { size: 44, fill: '#fff', stroke: 'rgba(0,0,0,0.6)', lw: 7, weight: 700 }));   // 中间跳转页倒计时（midjump.js）
+  def('loading',[-140, -40, 140, 40], (c) => text(c, '加载中', 0, 0, { size: 40, fill: '#fff', stroke: 'rgba(0,0,0,0.55)', lw: 6, weight: 700 }));
   def('pct', [-30, -40, 40, 40], (c) => text(c, '%', 0, 0, { size: 40, fill: '#fff', stroke: 'rgba(0,0,0,0.55)', lw: 6, weight: 700 }));
   def('barBg', [-4, -4, 724, 20], (c) => { rr(c, 0, 0, 720, 16, 8); c.fillStyle = 'rgba(255,255,255,0.18)'; c.fill(); c.lineWidth = 2; c.strokeStyle = 'rgba(255,255,255,0.35)'; c.stroke(); });
   def('barFill', [0, 0, 16, 16], (c) => { const g = c.createLinearGradient(0, 0, 16, 0); g.addColorStop(0, '#7fd8ff'); g.addColorStop(1, '#ffffff'); c.fillStyle = g; c.fillRect(-2, -2, 20, 20); });
